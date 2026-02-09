@@ -1,0 +1,34 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from backend.app.container import build_container
+from backend.app.routers.knowledge_bases import mount_knowledge_base_routes
+from backend.app.routers.resources import mount_resources_routes
+from backend.app.routers.tasks import mount_task_routes
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+container = build_container(PROJECT_ROOT)
+
+app = FastAPI(title="Sailor", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=container.settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(mount_resources_routes(container))
+app.include_router(mount_knowledge_base_routes(container))
+app.include_router(mount_task_routes(container))
+
+
+@app.get("/healthz")
+def healthz() -> dict[str, str]:
+    return {"status": "ok"}

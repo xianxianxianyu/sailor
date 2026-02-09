@@ -1,0 +1,259 @@
+:root {
+  --bg-0: #f3f6f9;
+  --bg-1: #ffffff;
+  --bg-2: #e9edf3;
+  --ink-0: #0f1723;
+  --ink-1: #334155;
+  --accent-0: #0f766e;
+  --accent-1: #22c55e;
+  --danger: #dc2626;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  line-height: 1.45;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--ink-0);
+  background:
+    radial-gradient(circle at top right, #bae6fd 0%, transparent 40%),
+    radial-gradient(circle at bottom left, #bbf7d0 0%, transparent 35%),
+    var(--bg-0);
+}
+
+.app-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 1.25rem;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-radius: 16px;
+  background: linear-gradient(130deg, #0f766e, #155e75);
+  color: #f8fafc;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.hero p {
+  margin: 0.3rem 0 0;
+  color: #dbeafe;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.7rem;
+}
+
+.hero button,
+.hero select,
+.detail-actions button,
+.modal-actions button {
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 0.85rem;
+  font-weight: 600;
+}
+
+.hero button,
+.detail-actions button,
+.modal-actions .primary {
+  background: var(--accent-1);
+  color: #052e16;
+}
+
+.message {
+  margin: 0.8rem 0;
+  padding: 0.65rem 0.85rem;
+  border-left: 4px solid var(--accent-0);
+  background: #e2f8f4;
+}
+
+.layout-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1.3fr 1fr 0.8fr;
+  margin-top: 1rem;
+}
+
+.feed-section,
+.detail-panel,
+.task-panel {
+  background: var(--bg-1);
+  border: 1px solid var(--bg-2);
+  border-radius: 14px;
+  padding: 1rem;
+  min-height: 300px;
+}
+
+.feed-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.resource-card {
+  border: 1px solid var(--bg-2);
+  border-radius: 12px;
+  padding: 0.8rem;
+  background: #fdfefe;
+}
+
+.resource-card header,
+.resource-card footer,
+.topic-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.resource-card header {
+  justify-content: space-between;
+}
+
+.resource-card footer {
+  justify-content: space-between;
+  margin-top: 0.6rem;
+}
+
+.link-button {
+  border: none;
+  background: transparent;
+  color: var(--ink-0);
+  font-weight: 700;
+  text-align: left;
+  padding: 0;
+}
+
+.plus-button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: #bae6fd;
+  color: #0369a1;
+  font-size: 1.1rem;
+}
+
+.topic-chip {
+  display: inline-block;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: #ecfeff;
+  color: #0f766e;
+  font-size: 0.78rem;
+  border: 1px solid #99f6e4;
+}
+
+.archived-flag {
+  color: #166534;
+  background: #dcfce7;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+}
+
+.task-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.task-panel li {
+  border-left: 3px solid #f59e0b;
+  padding-left: 0.6rem;
+}
+
+.task-panel li strong,
+.task-panel li span {
+  display: block;
+}
+
+.empty {
+  margin: 1rem 0;
+  padding: 0.7rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--ink-1);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 35, 0.5);
+  display: grid;
+  place-items: center;
+}
+
+.modal {
+  width: min(520px, 92vw);
+  background: white;
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.modal-subtitle {
+  color: var(--ink-1);
+  margin-top: -0.2rem;
+}
+
+.kb-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.8rem 0;
+  max-height: 260px;
+  overflow: auto;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.kb-list label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  border: 1px solid var(--bg-2);
+  border-radius: 10px;
+  padding: 0.45rem 0.55rem;
+}
+
+.kb-list em {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--ink-1);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.detail-actions {
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+@media (max-width: 1024px) {
+  .layout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

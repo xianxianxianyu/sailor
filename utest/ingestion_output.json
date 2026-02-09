@@ -1,0 +1,99 @@
+{
+  "ingestion_result": {
+    "collected_count": 10,
+    "processed_count": 10
+  },
+  "resources_count": 10,
+  "resource_samples": [
+    {
+      "resource_id": "res_e5949a232e55",
+      "canonical_url": "https://spaces.ac.cn/archives/11593",
+      "source": "rss",
+      "provenance": {
+        "miniflux_feed_id": "https://kexue.fm/",
+        "miniflux_entry_id": "https://spaces.ac.cn/archives/11593",
+        "captured_at": "2026-02-09T09:51:51.229111"
+      },
+      "title": "Adam优化器的最优超参数是β1=β2 ？",
+      "published_at": "2026-02-04 15:47:00+08:00",
+      "text": "最近笔者刷到论文 《Why Adam Works Better with β1=β2: The Missing Gradient Scale Invariance Principle》 ，顾名思义，它声称Adam在$\\beta_1=\\beta_2$时表现更优。经同事提醒，去年论文 《In Search of Adam's Secret Sauce》 也表达了相同的观点。无独有偶，昨天刚出来的 《The Effect of Mini-Batch Noise on the Implicit Bias of Adam》 也有类似发现。 \\begin{equation}\\text{Adam}\\color{skyblue}{\\text{W}}:=\\left\\{\\begin{aligned} &\\boldsymbol{m}_t = \\beta_1 \\boldsymbol{m}_{t-1} + \\left(1 - \\beta_1\\right) \\boldsymbol{g}_t\\\\ &\\boldsymbol{v}_t = \\beta_2 \\boldsymbol{v}_{t-1} + \\left(1 - \\beta_2\\right) \\boldsymbol{g}_t^2\\\\ &\\hat{\\boldsymbol{m}}_t = \\boldsymbol{m}_t\\left/\\left(1 - \\beta_1^t\\right)\\right.\\\\ &\\hat{\\boldsymbol{v}}_t = \\boldsymbol{v}_t\\left/\\left(1 - \\beta_2^t\\right)\\right.\\\\ &\\boldsymbol{u}_t =\\hat{\\boldsymbol{m}}_t\\left/\\left(\\sqrt{\\hat{\\boldsymbol{v}}_t} + \\epsilon\\right)\\right.\\\\ &\\boldsymbol{\\theta}_t = \\boldsymbol{\\theta}_{t-1} - \\eta_t (\\boldsymbol{u}_t \\color{skyblue}{ + \\lambda_t \\boldsymbol{\\theta}_{t-1}}) \\end{aligned}\\right.\\end{equation} 众多论文都指向了$\\beta_1=\\beta_2$，它有什么理论上的好处呢？本文我们来学习一下相关推导。 [...]",
+      "original_url": "https://spaces.ac.cn/archives/11593",
+      "topics": [
+        "General"
+      ],
+      "summary": "最近笔者刷到论文 《Why Adam Works Better with β1=β2: The Missing Gradient Scale Invariance Principle》 ，顾名思义，它声称Adam在$\\beta_1=\\beta_2$时表现更优。经同事提醒，去年论文 《In Search of Adam's Secret Sauce》 也表达了相同的观点。无独有偶，昨天刚出来的 《The Effect of Mini-B…"
+    },
+    {
+      "resource_id": "res_af1bf3cffff3",
+      "canonical_url": "https://spaces.ac.cn/archives/11578",
+      "source": "rss",
+      "provenance": {
+        "miniflux_feed_id": "https://kexue.fm/",
+        "miniflux_entry_id": "https://spaces.ac.cn/archives/11578",
+        "captured_at": "2026-02-09T09:51:51.229111"
+      },
+      "title": "一行代码将arXiv论文翻译成中文版",
+      "published_at": "2026-01-28 12:01:00+08:00",
+      "text": "认识比较久的老读者或许都知道，笔者算是一个比较坚定的“古法编程爱好者”——至今仍不用IDE、不用代码补全、编辑器只需语法高亮即可。就连科学空间的博文，都是笔者一个个字敲的HTML源码（当然这有些历史原因），还有 Cool Papers 的从前端到后端的整站代码，也都是笔者手敲的。 但即便是笔者这样的“老顽固”，也不得不承认：AI Agent对某些任务来说具有无与伦比的优势——有些任务你想手写，都有种无从下手的感觉。这篇文章就介绍一个经典例子，用一行代码翻译arXiv论文。 先说方法 首先在本地部署好 kimi-cli ，配置好使用 kimi-k2.5 ，然后还要装一个LaTeX编译环境（笔者用的是 MacTeX ），最后从arXiv下载论文源码，解压并进入到源码，执行 [...]",
+      "original_url": "https://spaces.ac.cn/archives/11578",
+      "topics": [
+        "LLM"
+      ],
+      "summary": "认识比较久的老读者或许都知道，笔者算是一个比较坚定的“古法编程爱好者”——至今仍不用IDE、不用代码补全、编辑器只需语法高亮即可。就连科学空间的博文，都是笔者一个个字敲的HTML源码（当然这有些历史原因），还有 Cool Papers 的从前端到后端的整站代码，也都是笔者手敲的。 但即便是笔者这样的“老顽固”，也不得不承认：AI Agent对某些任务来说具有无与伦比的优势——有些任务你想手写，都有种无从下手的感觉。这篇文章就介绍一个经…"
+    },
+    {
+      "resource_id": "res_e21b54446afe",
+      "canonical_url": "https://spaces.ac.cn/archives/11563",
+      "source": "rss",
+      "provenance": {
+        "miniflux_feed_id": "https://kexue.fm/",
+        "miniflux_entry_id": "https://spaces.ac.cn/archives/11563",
+        "captured_at": "2026-02-09T09:51:51.229111"
+      },
+      "title": "DeltaNet的核心逆矩阵的元素总是在[-1, 1]内",
+      "published_at": "2026-01-26 10:47:00+08:00",
+      "text": "从 《线性注意力简史：从模仿、创新到反哺》 中我们可以看到，DeltaNet的并行形式涉及到了形如$(\\boldsymbol{I} + \\boldsymbol{K}\\boldsymbol{K}^{\\top}\\odot \\boldsymbol{M}^-)^{-1}$的逆矩阵。近日读者 @Arch123 提出，通过实验可观察到该逆矩阵的元素总是在$[-1, 1]$内，问是否可以从数学上证实或证伪它。 在这篇文章中，我们将通过两种不同的方式证明这个结论是严格成立的。 问题描述 首先，我们准确地重述一下问题。设有矩阵$\\boldsymbol{K}=[\\boldsymbol{k}_1,\\boldsymbol{k}_2,\\cdots,\\boldsymbol{k}_n]^{\\top}\\in\\mathbb{R}^{n\\times d}$，其中每个$\\boldsymbol{k}_i\\in\\mathbb{R}^{d\\times 1}$是模长不超过1的列向量，$\\boldsymbol{M}\\in\\mathbb{R}^{n\\times n}$是一个下三角的掩码矩阵，定义为 \\begin{equation}M_{i,j} = \\left\\{\\begin{aligned} &1, &i \\geq j \\\\ &0, &i $\\boldsymbol{I}$是单位阵，$\\boldsymbol{M}^- = \\boldsymbol{M} - \\boldsymbol{I}$。我们要证明的是： \\begin{equation}(\\boldsymbol{I} + \\boldsymbol{K}\\boldsymbol{K}^{\\top}\\odot \\boldsymbol{M}^-)^{-1}\\quad\\in\\quad [-1, 1]^{n\\times n}\\end{equation} [...]",
+      "original_url": "https://spaces.ac.cn/archives/11563",
+      "topics": [
+        "General"
+      ],
+      "summary": "从 《线性注意力简史：从模仿、创新到反哺》 中我们可以看到，DeltaNet的并行形式涉及到了形如$(\\boldsymbol{I} + \\boldsymbol{K}\\boldsymbol{K}^{\\top}\\odot \\boldsymbol{M}^-)^{-1}$的逆矩阵。近日读者 @Arch123 提出，通过实验可观察到该逆矩阵的元素总是在$[-1, 1]$内，问是否可以从数学上证实或证伪它。 在这篇文章中，我们将通过两种不同的方式…"
+    }
+  ],
+  "source": {
+    "mode": "feed_url",
+    "feed_url": "https://spaces.ac.cn/feed",
+    "feed_fetch": {
+      "status": 200,
+      "content_type": "application/rss+xml; charset=UTF-8",
+      "etag": null,
+      "last_modified": null,
+      "bytes": 22735
+    },
+    "converted_seed": "E:\\OS\\sailor\\utest\\seed_from_input.json",
+    "converted_items": 10,
+    "db_file": "E:\\OS\\sailor\\utest\\sailor_utest.db",
+    "ran_at": "2026-02-09T09:51:51.300110+00:00",
+    "network_mode": "miniflux_disabled_local_seed_only"
+  },
+  "original_fetch": {
+    "attempted": 2,
+    "success_count": 0,
+    "failure_count": 2,
+    "delay_seconds": 5.0,
+    "results": [
+      {
+        "url": "https://spaces.ac.cn/archives/11593",
+        "status": 403,
+        "ok": false,
+        "error": "HTTPError: Forbidden"
+      },
+      {
+        "url": "https://spaces.ac.cn/archives/11578",
+        "status": 403,
+        "ok": false,
+        "error": "HTTPError: Forbidden"
+      }
+    ]
+  }
+}

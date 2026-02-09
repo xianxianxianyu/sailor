@@ -1,0 +1,26 @@
+[
+  {
+    "entry_id": "1001",
+    "feed_id": "engineering-blog",
+    "title": "Building reliable RAG services in production",
+    "url": "https://example.dev/rag-production?utm_source=rss",
+    "published_at": "2026-02-07T09:00:00+00:00",
+    "content": "<p>RAG pipelines need observability, retrieval quality control, and fallback strategies to avoid hallucination regressions.</p>"
+  },
+  {
+    "entry_id": "1002",
+    "feed_id": "platform-weekly",
+    "title": "Kubernetes cluster upgrades without downtime",
+    "url": "https://example.dev/k8s-upgrades?ref=newsletter",
+    "published_at": "2026-02-06T11:30:00+00:00",
+    "content": "<p>This guide covers canary node pools, workload disruption budgets, and rollout verification checkpoints.</p>"
+  },
+  {
+    "entry_id": "1003",
+    "feed_id": "frontend-labs",
+    "title": "React state orchestration with event-driven UI",
+    "url": "https://example.dev/react-event-ui",
+    "published_at": "2026-02-05T08:15:00+00:00",
+    "content": "<p>A practical pattern for reducing UI coupling by emitting domain events and subscribing in narrow view components.</p>"
+  }
+]
