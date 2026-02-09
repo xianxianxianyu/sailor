@@ -9,6 +9,9 @@ from backend.app.container import build_container
 from backend.app.routers.knowledge_bases import mount_knowledge_base_routes
 from backend.app.routers.resources import mount_resources_routes
 from backend.app.routers.tasks import mount_task_routes
+from backend.app.routers.feeds import mount_feed_routes
+from backend.app.routers.analyses import mount_analysis_routes
+from backend.app.routers.reports import mount_report_routes
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -27,6 +30,9 @@ app.add_middleware(
 app.include_router(mount_resources_routes(container))
 app.include_router(mount_knowledge_base_routes(container))
 app.include_router(mount_task_routes(container))
+app.include_router(mount_feed_routes(container))
+app.include_router(mount_analysis_routes(container))
+app.include_router(mount_report_routes(container))
 
 
 @app.get("/healthz")

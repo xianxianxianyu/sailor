@@ -6,9 +6,12 @@ import {
   getMainFlowTasks,
   getResourceKnowledgeBases,
   getResources,
+  runAnalysis,
   runIngestion,
 } from "./api";
+import AnalysisPanel from "./components/AnalysisPanel";
 import KBPickerModal from "./components/KBPickerModal";
+import KBReportPanel from "./components/KBReportPanel";
 import ResourceCard from "./components/ResourceCard";
 import TaskPanel from "./components/TaskPanel";
 import type { KnowledgeBase, MainFlowTask, Resource } from "./types";
@@ -28,7 +31,9 @@ export default function App() {
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [pickerResource, setPickerResource] = useState<Resource | null>(null);
   const [busy, setBusy] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [message, setMessage] = useState<string>("");
+  const [selectedKbForReport, setSelectedKbForReport] = useState<string>("");
 
   const topics = useMemo(() => uniqueTopics(resources), [resources]);
 
@@ -65,6 +70,18 @@ export default function App() {
       setMessage(`Synced ${result.processed_count} resources.`);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function onAnalyze() {
+    try {
+      setAnalyzing(true);
+      const result = await runAnalysis();
+      setMessage(`Analyzed ${result.analyzed_count} resources. ${result.failed_count} failed.`);
+    } catch {
+      setMessage("Analysis failed. Check API key configuration.");
+    } finally {
+      setAnalyzing(false);
     }
   }
 
@@ -110,6 +127,9 @@ export default function App() {
           <button onClick={onSync} disabled={busy}>
             {busy ? "Syncing..." : "Sync Ingestion"}
           </button>
+          <button onClick={onAnalyze} disabled={analyzing} className="analyze-btn">
+            {analyzing ? "Analyzing..." : "Analyze All"}
+          </button>
         </div>
       </header>
 
@@ -151,13 +171,32 @@ export default function App() {
                 </a>
                 <button onClick={() => setPickerResource(selectedResource)}>+ Add to KB</button>
               </div>
+              <AnalysisPanel resourceId={selectedResource.resource_id} />
             </article>
           ) : (
             <div className="empty">Pick a resource from the feed to review details.</div>
           )}
         </section>
 
-        <TaskPanel tasks={tasks} />
+        <aside className="right-panel">
+          <TaskPanel tasks={tasks} />
+
+          <div className="kb-report-section">
+            <h2>KB Reports</h2>
+            <select
+              value={selectedKbForReport}
+              onChange={(e) => setSelectedKbForReport(e.target.value)}
+            >
+              <option value="">Select KB...</option>
+              {knowledgeBases.map((kb) => (
+                <option key={kb.kb_id} value={kb.kb_id}>
+                  {kb.name}
+                </option>
+              ))}
+            </select>
+            {selectedKbForReport && <KBReportPanel kbId={selectedKbForReport} />}
+          </div>
+        </aside>
       </main>
 
       <KBPickerModal

@@ -12,6 +12,10 @@ class Settings:
     miniflux_base_url: str
     miniflux_token: str
     cors_origins: list[str]
+    opml_file: Path
+    openai_api_key: str
+    openai_base_url: str
+    openai_model: str
 
 
 def load_settings(project_root: Path) -> Settings:
@@ -24,4 +28,8 @@ def load_settings(project_root: Path) -> Settings:
         miniflux_base_url=os.getenv("MINIFLUX_BASE_URL", ""),
         miniflux_token=os.getenv("MINIFLUX_TOKEN", ""),
         cors_origins=cors_origins,
+        opml_file=Path(os.getenv("SAILOR_OPML_FILE", project_root / "1.md")),
+        openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+        openai_base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+        openai_model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
     )

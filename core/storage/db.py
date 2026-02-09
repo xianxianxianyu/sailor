@@ -47,5 +47,50 @@ class Database:
                     FOREIGN KEY(kb_id) REFERENCES knowledge_bases(kb_id),
                     FOREIGN KEY(resource_id) REFERENCES resources(resource_id)
                 );
+
+                CREATE TABLE IF NOT EXISTS rss_feeds (
+                    feed_id         TEXT PRIMARY KEY,
+                    name            TEXT NOT NULL,
+                    xml_url         TEXT NOT NULL UNIQUE,
+                    html_url        TEXT,
+                    enabled         INTEGER NOT NULL DEFAULT 1,
+                    last_fetched_at TEXT,
+                    error_count     INTEGER DEFAULT 0,
+                    last_error      TEXT,
+                    created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS resource_analyses (
+                    resource_id         TEXT PRIMARY KEY,
+                    summary             TEXT NOT NULL,
+                    topics_json         TEXT NOT NULL,
+                    scores_json         TEXT NOT NULL,
+                    kb_recommendations_json TEXT NOT NULL,
+                    insights_json       TEXT NOT NULL,
+                    model               TEXT NOT NULL,
+                    prompt_tokens       INTEGER DEFAULT 0,
+                    completion_tokens   INTEGER DEFAULT 0,
+                    status              TEXT NOT NULL DEFAULT 'pending',
+                    error_message       TEXT,
+                    created_at          TEXT DEFAULT CURRENT_TIMESTAMP,
+                    completed_at        TEXT,
+                    FOREIGN KEY(resource_id) REFERENCES resources(resource_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS kb_reports (
+                    report_id       TEXT PRIMARY KEY,
+                    kb_id           TEXT NOT NULL,
+                    report_type     TEXT NOT NULL,
+                    content_json    TEXT NOT NULL,
+                    resource_count  INTEGER NOT NULL,
+                    model           TEXT NOT NULL,
+                    prompt_tokens   INTEGER DEFAULT 0,
+                    completion_tokens INTEGER DEFAULT 0,
+                    status          TEXT NOT NULL DEFAULT 'pending',
+                    error_message   TEXT,
+                    created_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+                    completed_at    TEXT,
+                    FOREIGN KEY(kb_id) REFERENCES knowledge_bases(kb_id)
+                );
                 """
             )

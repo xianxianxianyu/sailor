@@ -3,10 +3,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from core.collector import CollectionEngine, MinifluxCollector, RSSCollector
+from core.agent.article_agent import ArticleAnalysisAgent
+from core.agent.base import LLMClient, LLMConfig
+from core.agent.kb_agent import KBClusterAgent
+from core.collector import CollectionEngine, LiveRSSCollector, MinifluxCollector, RSSCollector
 from core.pipeline import build_default_pipeline
 from core.services import IngestionService
-from core.storage import Database, KnowledgeBaseRepository, ResourceRepository
+from core.storage import (
+    AnalysisRepository,
+    Database,
+    FeedRepository,
+    KBReportRepository,
+    KnowledgeBaseRepository,
+    ResourceRepository,
+)
 from core.tasks import MainUserFlowTaskPlanner
 
 from .config import Settings, load_settings
@@ -18,8 +28,14 @@ class AppContainer:
     db: Database
     resource_repo: ResourceRepository
     kb_repo: KnowledgeBaseRepository
+    feed_repo: FeedRepository
+    analysis_repo: AnalysisRepository
+    report_repo: KBReportRepository
     ingestion_service: IngestionService
     task_planner: MainUserFlowTaskPlanner
+    llm_client: LLMClient
+    article_agent: ArticleAnalysisAgent
+    kb_agent: KBClusterAgent
 
 
 def build_container(project_root: Path) -> AppContainer:
@@ -30,6 +46,9 @@ def build_container(project_root: Path) -> AppContainer:
     resource_repo = ResourceRepository(db)
     kb_repo = KnowledgeBaseRepository(db)
     kb_repo.ensure_defaults()
+    feed_repo = FeedRepository(db)
+    analysis_repo = AnalysisRepository(db)
+    report_repo = KBReportRepository(db)
 
     collectors = [
         RSSCollector(seed_file=settings.seed_file, source_name="rss"),
@@ -38,6 +57,7 @@ def build_container(project_root: Path) -> AppContainer:
             token=settings.miniflux_token,
             source_name="rsshub",
         ),
+        LiveRSSCollector(feed_repo=feed_repo, source_name="live_rss"),
     ]
     ingestion_service = IngestionService(
         engine=CollectionEngine(collectors=collectors),
@@ -46,11 +66,37 @@ def build_container(project_root: Path) -> AppContainer:
     )
     task_planner = MainUserFlowTaskPlanner(resource_repo)
 
+    llm_config = LLMConfig(
+        api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url,
+        model=settings.openai_model,
+    )
+    llm_client = LLMClient(llm_config)
+    article_agent = ArticleAnalysisAgent(
+        llm=llm_client,
+        analysis_repo=analysis_repo,
+        resource_repo=resource_repo,
+        kb_repo=kb_repo,
+    )
+    kb_agent = KBClusterAgent(
+        llm=llm_client,
+        report_repo=report_repo,
+        analysis_repo=analysis_repo,
+        resource_repo=resource_repo,
+        kb_repo=kb_repo,
+    )
+
     return AppContainer(
         settings=settings,
         db=db,
         resource_repo=resource_repo,
         kb_repo=kb_repo,
+        feed_repo=feed_repo,
+        analysis_repo=analysis_repo,
+        report_repo=report_repo,
         ingestion_service=ingestion_service,
         task_planner=task_planner,
+        llm_client=llm_client,
+        article_agent=article_agent,
+        kb_agent=kb_agent,
     )
