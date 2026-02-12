@@ -72,6 +72,21 @@ class FeedRepository:
         with self.db.connect() as conn:
             conn.execute(sql, params)
 
+    def add_feed(self, name: str, xml_url: str, html_url: str | None = None) -> RSSFeed:
+        feed_id = _make_feed_id(xml_url)
+        with self.db.connect() as conn:
+            conn.execute(
+                "INSERT INTO rss_feeds (feed_id, name, xml_url, html_url) VALUES (?, ?, ?, ?) ON CONFLICT(xml_url) DO NOTHING",
+                (feed_id, name, xml_url, html_url),
+            )
+            row = conn.execute("SELECT * FROM rss_feeds WHERE feed_id = ?", (feed_id,)).fetchone()
+        return _row_to_feed(row)
+
+    def delete_feed(self, feed_id: str) -> bool:
+        with self.db.connect() as conn:
+            cursor = conn.execute("DELETE FROM rss_feeds WHERE feed_id = ?", (feed_id,))
+        return cursor.rowcount > 0
+
     def toggle_enabled(self, feed_id: str, enabled: bool) -> None:
         with self.db.connect() as conn:
             conn.execute(

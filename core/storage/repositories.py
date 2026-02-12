@@ -125,21 +125,22 @@ class KnowledgeBaseRepository:
         self.db = db
 
     def ensure_defaults(self) -> None:
-        defaults = [
-            KnowledgeBase(kb_id="kb_llm", name="LLM Notes", description="LLM and AI engineering"),
-            KnowledgeBase(kb_id="kb_platform", name="Platform", description="Infra and platform engineering"),
-            KnowledgeBase(kb_id="kb_product", name="Product Engineering", description="Frontend and product design"),
-        ]
+        """No longer creates hardcoded KBs — users create their own."""
+        pass
+
+    def create_kb(self, kb_id: str, name: str, description: str | None = None) -> KnowledgeBase:
         with self.db.connect() as conn:
-            for kb in defaults:
-                conn.execute(
-                    """
-                    INSERT INTO knowledge_bases (kb_id, name, description)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT(kb_id) DO NOTHING
-                    """,
-                    (kb.kb_id, kb.name, kb.description),
-                )
+            conn.execute(
+                "INSERT INTO knowledge_bases (kb_id, name, description) VALUES (?, ?, ?)",
+                (kb_id, name, description),
+            )
+        return KnowledgeBase(kb_id=kb_id, name=name, description=description)
+
+    def delete_kb(self, kb_id: str) -> bool:
+        with self.db.connect() as conn:
+            conn.execute("DELETE FROM kb_items WHERE kb_id = ?", (kb_id,))
+            cursor = conn.execute("DELETE FROM knowledge_bases WHERE kb_id = ?", (kb_id,))
+        return cursor.rowcount > 0
 
     def list_all(self) -> list[KnowledgeBase]:
         with self.db.connect() as conn:
@@ -172,3 +173,31 @@ class KnowledgeBaseRepository:
             resource_id=row["resource_id"],
             added_at=datetime.fromisoformat(row["added_at"]),
         )
+
+    def remove_item(self, kb_id: str, resource_id: str) -> bool:
+        with self.db.connect() as conn:
+            cursor = conn.execute(
+                "DELETE FROM kb_items WHERE kb_id = ? AND resource_id = ?",
+                (kb_id, resource_id),
+            )
+        return cursor.rowcount > 0
+
+    def list_items(self, kb_id: str) -> list[KnowledgeBaseItem]:
+        with self.db.connect() as conn:
+            rows = conn.execute(
+                "SELECT kb_id, resource_id, added_at FROM kb_items WHERE kb_id = ? ORDER BY added_at DESC",
+                (kb_id,),
+            ).fetchall()
+        return [
+            KnowledgeBaseItem(
+                kb_id=row["kb_id"],
+                resource_id=row["resource_id"],
+                added_at=datetime.fromisoformat(row["added_at"]),
+            )
+            for row in rows
+        ]
+
+    def item_count(self, kb_id: str) -> int:
+        with self.db.connect() as conn:
+            row = conn.execute("SELECT COUNT(*) as cnt FROM kb_items WHERE kb_id = ?", (kb_id,)).fetchone()
+        return row["cnt"]

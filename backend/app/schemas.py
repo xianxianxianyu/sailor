@@ -119,3 +119,23 @@ class KBReportOut(BaseModel):
 
 class GenerateReportsIn(BaseModel):
     report_types: list[str] | None = None
+
+
+# --- Tag 管理 ---
+
+class TagOut(BaseModel):
+    tag_id: str
+    name: str
+    color: str
+    weight: int
+    created_at: datetime | None
+
+
+class CreateTagIn(BaseModel):
+    name: str
+    color: str = "#0f766e"
+
+
+class UpdateTagIn(BaseModel):
+    name: str | None = None
+    color: str | None = None

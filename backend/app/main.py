@@ -12,6 +12,8 @@ from backend.app.routers.tasks import mount_task_routes
 from backend.app.routers.feeds import mount_feed_routes
 from backend.app.routers.analyses import mount_analysis_routes
 from backend.app.routers.reports import mount_report_routes
+from backend.app.routers.tags import mount_tag_routes
+from backend.app.routers.trending import mount_trending_routes
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -33,6 +35,8 @@ app.include_router(mount_task_routes(container))
 app.include_router(mount_feed_routes(container))
 app.include_router(mount_analysis_routes(container))
 app.include_router(mount_report_routes(container))
+app.include_router(mount_tag_routes(container))
+app.include_router(mount_trending_routes(container))
 
 
 @app.get("/healthz")

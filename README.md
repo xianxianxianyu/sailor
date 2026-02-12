@@ -1,127 +1,62 @@
-# Sailor
+<p align="center">
+  <img src="https://em-content.zobj.net/source/apple/391/sailboat_26f5.png" width="80" />
+</p>
 
-**Sailor** 是一个面向技术从业者的个人信息雷达系统。它从 RSS 订阅源持续采集技术文章，经过预处理流水线清洗入库，再由 LLM Agent 进行智能分析（摘要、评分、主题分类、知识库推荐），最终在 Web 界面上呈现一个可扫描、可归档、可洞察的技术阅读工作台。
+<h1 align="center">Sailor</h1>
 
-## 为什么做 Sailor
+<p align="center">
+  <strong>你的个人技术信息雷达。一键抓取，智能打标，Trending 报告，知识库收藏。</strong>
+</p>
 
-每天有大量高质量的技术博客在更新，但散落在几十个 RSS 源里。手动逐篇阅读效率低，容易错过高价值内容。Sailor 要解决的问题是：
+<p align="center">
+  <a href="#快速开始">快速开始</a> •
+  <a href="#功能特性">功能特性</a> •
+  <a href="#架构">架构</a> •
+  <a href="#api-参考">API 参考</a> •
+  <a href="#配置">配置</a> •
+  <a href="#contributing">Contributing</a>
+</p>
 
-1. **采集** — 把分散的 RSS 源统一拉取，去重后写入本地数据库
-2. **理解** — 用 LLM 对每篇文章生成中文摘要、打分、提取关键洞察
-3. **组织** — 将文章归档到知识库，由 LLM 对知识库做聚类分析和知识总结
-4. **呈现** — 在一个干净的 Web 界面上完成「扫描 → 细读 → 归档 → 洞察」的完整工作流
+---
 
-## 架构总览
+Sailor 从 RSS 和非 RSS 源持续采集技术文章，通过 LLM 智能打标分类，生成类似 GitHub Trending 的报告，让你在一个界面完成「发现 → 阅读 → 收藏 → 沉淀」的完整知识工作流。收藏行为会反哺回用户偏好，让推荐越用越准。
+
+## 功能特性
+
+🚀 **一键 Pipeline** — 点一个按钮完成抓取 → 打标 → 生成 Trending 报告的全流程
+
+📊 **Trending 报告** — 按标签分组展示文章，类似 GitHub Trending，点击标题直达原文
+
+🏷️ **LLM 智能打标** — 基于用户已有标签偏好 + 文章内容，由 LLM 动态分配标签，替代硬编码规则
+
+📚 **知识库管理** — 创建多个知识库，从 Trending 中一键收藏文章，随时查看和管理
+
+📡 **多源订阅** — 支持 RSS Feed、Miniflux (RSSHub)、本地种子文件三种数据源，OPML 批量导入
+
+🏷️ **标签云** — 权重驱动的标签可视化，越常用的标签越大，支持手动增删
+
+🔄 **偏好反哺** — 收藏文章时自动提升相关标签权重，下次打标更贴合你的兴趣
+
+🤖 **深度分析** — 可选的 LLM Agent 对文章做摘要、评分、洞察提取，对知识库做聚类分析
+
+## Demo
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend (React + Vite)                  │
-│  ┌──────────┐  ┌──────────────┐  ┌───────────┐  ┌───────────┐  │
-│  │ Resource  │  │   Detail +   │  │   Task    │  │ KB Report │  │
-│  │   Feed    │  │ AnalysisPanel│  │   Panel   │  │   Panel   │  │
-│  └──────────┘  └──────────────┘  └───────────┘  └───────────┘  │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ HTTP / JSON
-┌────────────────────────────▼────────────────────────────────────┐
-│                     Backend (FastAPI)                            │
-│  /resources  /knowledge-bases  /feeds  /tasks  /analyses        │
-└──────┬──────────────┬──────────────┬────────────────────────────┘
-       │              │              │
-┌──────▼──────┐ ┌─────▼─────┐ ┌─────▼──────┐
-│  Ingestion  │ │  Agent 1  │ │  Agent 2   │
-│  Service    │ │  Article  │ │  KB Cluster│
-│             │ │  Analysis │ │  Analysis  │
-└──────┬──────┘ └─────┬─────┘ └─────┬──────┘
-       │              │              │
-┌──────▼──────────────▼──────────────▼────────────────────────────┐
-│                        Core Layer                               │
-│  ┌───────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │
-│  │ Collector  │  │ Pipeline │  │  Agent   │  │   Storage     │  │
-│  │ Engine     │  │ Stages   │  │  (LLM)   │  │   (SQLite)    │  │
-│  └───────────┘  └──────────┘  └──────────┘  └───────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 数据流
-
-```
-RSS Feeds ──┐
-Seed JSON ──┼──▶ CollectionEngine ──▶ Pipeline ──▶ resources 表
-Miniflux  ──┘    (去重合并)          (清洗/富化)
-
-resources 表 ──▶ Agent 1 (LLM) ──▶ resource_analyses 表
-                 (摘要/评分/分类)
-
-kb_items 表 ──▶ Agent 2 (LLM) ──▶ kb_reports 表
-                (聚类/关联/总结)
-```
-
-## 项目结构
-
-```
-sailor/
-├── 1.md                          # 92 个 RSS 源（OPML 格式）
-├── data/
-│   └── seed_entries.json         # 3 条本地种子数据（离线测试用）
-│
-├── core/                         # 核心业务逻辑（不依赖 Web 框架）
-│   ├── models.py                 # 领域模型：RawEntry, Resource, KnowledgeBase,
-│   │                             #   RSSFeed, ResourceAnalysis, KBReport
-│   ├── collector/
-│   │   ├── base.py               # Collector 抽象基类 + CollectionEngine
-│   │   ├── rss_engine.py         # 本地 JSON seed 采集器
-│   │   ├── miniflux_engine.py    # Miniflux API 采集器
-│   │   ├── opml_parser.py        # OPML XML 解析（支持双段去重）
-│   │   └── live_rss_engine.py    # feedparser 实时 RSS 抓取器
-│   ├── pipeline/
-│   │   ├── base.py               # Pipeline 基类 + PipelineContext
-│   │   ├── stages.py             # Normalize → Extract → Clean → Enrich → Build
-│   │   └── default_pipeline.py   # 默认流水线组装
-│   ├── agent/
-│   │   ├── base.py               # LLMClient（urllib 调用 OpenAI API）
-│   │   ├── prompts.py            # 所有 Prompt 模板
-│   │   ├── article_agent.py      # Agent 1：文章分析
-│   │   └── kb_agent.py           # Agent 2：知识库聚类分析
-│   ├── storage/
-│   │   ├── db.py                 # SQLite 连接 + 6 张表的 Schema
-│   │   ├── repositories.py       # Resource / KnowledgeBase 仓储
-│   │   ├── feed_repository.py    # RSS Feed 仓储
-│   │   ├── analysis_repository.py # 分析结果仓储
-│   │   └── report_repository.py  # KB 报告仓储
-│   ├── services/
-│   │   └── ingestion.py          # 采集 → 流水线 → 入库编排
-│   └── tasks/
-│       ├── models.py             # MainFlowTask 数据类
-│       └── planner.py            # 主流程任务规划器
-│
-├── backend/                      # FastAPI Web 层
-│   ├── .env.example              # 环境变量模板
-│   ├── requirements.txt          # Python 依赖
-│   └── app/
-│       ├── config.py             # 配置加载（环境变量）
-│       ├── container.py          # 依赖注入容器
-│       ├── main.py               # FastAPI 入口 + 路由挂载
-│       ├── schemas.py            # Pydantic 请求/响应模型
-│       └── routers/
-│           ├── resources.py      # GET /resources, GET /resources/{id}
-│           ├── knowledge_bases.py # GET /knowledge-bases, POST /{kb_id}/items
-│           ├── tasks.py          # POST /tasks/run-ingestion, GET /tasks/main-flow
-│           ├── feeds.py          # POST /feeds/import-opml, GET /feeds
-│           ├── analyses.py       # POST /tasks/run-analysis, GET /analyses/status
-│           └── reports.py        # POST /{kb_id}/reports, GET /{kb_id}/reports
-│
-└── frontend/                     # React + TypeScript + Vite
-    └── src/
-        ├── App.tsx               # 主应用（Feed + Detail + Tasks + Reports）
-        ├── api.ts                # 后端 API 调用封装
-        ├── types.ts              # TypeScript 类型定义
-        ├── styles.css            # 全局样式
-        └── components/
-            ├── ResourceCard.tsx   # 资源卡片（含评分徽章）
-            ├── AnalysisPanel.tsx  # AI 分析结果展示
-            ├── KBReportPanel.tsx  # 知识库报告展示
-            ├── KBPickerModal.tsx  # 知识库选择弹窗
-            └── TaskPanel.tsx      # 任务面板
+│  Sailor                              [🚀 一键抓取]  [刷新]     │
+├────────┬────────────────────────────────────────────────────────┤
+│  📊 趋势│  Trending Report                                      │
+│  🏷️ 标签│  共 45 篇文章，8 个标签                               │
+│  📚 知识│                                                       │
+│  📡 订阅│  ┌─ LLM ──────────────────────────────────────────┐  │
+│        │  │ Building RAG Pipelines with LangChain       [+] │  │
+│        │  │ Fine-tuning LLMs for Production             [+] │  │
+│        │  └──────────────────────────────────────────────────┘  │
+│        │                                                        │
+│        │  ┌─ DevOps ────────────────────────────────────────┐  │
+│        │  │ Kubernetes Gateway API Deep Dive             [+] │  │
+│        │  └──────────────────────────────────────────────────┘  │
+└────────┴────────────────────────────────────────────────────────┘
 ```
 
 ## 快速开始
@@ -130,183 +65,318 @@ sailor/
 
 - Python 3.11+
 - Node.js 18+
-- （可选）OpenAI API Key — 用于 AI 分析功能
+- （可选）OpenAI 兼容 API Key — 用于 LLM 智能打标和深度分析
 
-### 1. 启动后端
+### 安装
 
 ```bash
+git clone https://github.com/yourname/sailor.git
 cd sailor
+```
 
-# 创建虚拟环境
-conda create -n sailor python=3.11 -y
-conda activate sailor
+**后端：**
 
-# 安装依赖
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r backend/requirements.txt
-
-# （可选）配置 OpenAI，启用 AI 分析功能
-set OPENAI_API_KEY=sk-your-key-here
-# 如果使用兼容 OpenAI 的第三方服务：
-# set OPENAI_BASE_URL=https://your-provider.com/v1
-# set OPENAI_MODEL=gpt-4o-mini
-
-# 启动
-uvicorn backend.app.main:app --reload
 ```
 
-后端默认地址：`http://localhost:8000`
-
-### 2. 启动前端
+**前端：**
 
 ```bash
-cd sailor/frontend
+cd frontend
 npm install
-npm run dev
+cd ..
 ```
 
-前端默认地址：`http://localhost:5173`
-
-### 3. 基本工作流
-
-打开浏览器访问 `http://localhost:5173`，页面加载时会自动触发一次采集（从本地 seed 数据）。
-
-**导入 RSS 源并采集真实文章：**
+### 运行
 
 ```bash
-# 导入 1.md 中的 92 个 RSS 源
-curl -X POST http://localhost:8000/feeds/import-opml -H "Content-Type: application/json" -d "{}"
+# 终端 1 — 后端
+uvicorn backend.app.main:app --reload
 
-# 再次触发采集（现在会包含实时 RSS 抓取）
-curl -X POST http://localhost:8000/tasks/run-ingestion
+# 终端 2 — 前端
+cd frontend && npm run dev
 ```
 
-**运行 AI 分析（需要 OpenAI API Key）：**
+打开 http://localhost:5173 ，点击 **🚀 一键抓取** 开始使用。
+
+### 配置 LLM（推荐）
+
+设置环境变量启用智能打标：
 
 ```bash
-# 对所有资源运行 Agent 1 分析
-curl -X POST http://localhost:8000/tasks/run-analysis
-
-# 查看分析进度
-curl http://localhost:8000/analyses/status
+export OPENAI_API_KEY=sk-your-key
+export OPENAI_BASE_URL=https://api.deepseek.com/v1   # 或其他兼容 API
+export OPENAI_MODEL=deepseek-reasoner                  # 或 gpt-4o-mini
 ```
 
-**生成知识库报告：**
+> Sailor 使用 OpenAI Chat Completions API 协议，兼容 DeepSeek、Ollama、vLLM 等任何兼容服务。
 
-先在前端将一些文章归档到知识库（至少 3 篇），然后：
+### 导入 RSS 源
 
 ```bash
-# 对某个知识库生成聚类/关联/总结报告
-curl -X POST http://localhost:8000/knowledge-bases/kb_llm/reports
+# 方式 1：在前端 📡 订阅源页面手动添加或导入 OPML
+# 方式 2：API 导入
+curl -X POST http://localhost:8000/feeds/import-opml \
+  -H "Content-Type: application/json" -d '{}'
 ```
 
-也可以直接在前端的 KB Reports 面板中选择知识库并点击 "Generate Reports"。
+## 架构
 
-## API 一览
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Frontend (React 19 + Vite 7)                     │
+│                                                                      │
+│  NavBar ──┬── TrendingPage   按 Tag 分组的文章列表 + 收藏到 KB      │
+│           ├── TagPage        标签云 + 标签表格 + CRUD                │
+│           ├── KBPage         知识库列表 + 收藏文章管理               │
+│           └── FeedPage       RSS 源管理 + OPML 导入 + 源状态        │
+├─────────────────────────────────────────────────────────────────────┤
+│                     Backend (FastAPI + SQLite)                        │
+│                                                                      │
+│  Routers ─── /trending  /tags  /knowledge-bases  /feeds  /resources │
+│                                                                      │
+│  Services ── TrendingService (打标+分组)  IngestionService (抓取)    │
+│                                                                      │
+│  Agents ──── TaggingAgent (LLM智能打标)                              │
+│              ArticleAnalysisAgent (深度分析)                         │
+│              KBClusterAgent (知识库聚类)                              │
+│                                                                      │
+│  Collectors  LiveRSSCollector │ MinifluxCollector │ RSSCollector     │
+│                                                                      │
+│  Storage ─── SQLite (9 tables)                                       │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-### 资源管理
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/resources?status=inbox` | 列出收件箱资源 |
-| GET | `/resources/{resource_id}` | 获取单个资源 |
-| GET | `/resources/{resource_id}/knowledge-bases` | 资源所属的知识库 |
-| GET | `/resources/{resource_id}/analysis` | 获取资源的 AI 分析结果 |
+### 数据流
+
+```
+                    ┌─────────────┐
+                    │  🚀 一键抓取 │
+                    └──────┬──────┘
+                           │
+              ┌────────────▼────────────┐
+              │    CollectionEngine      │
+              │  RSS + Miniflux + Seed   │
+              └────────────┬────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │   PreprocessPipeline     │
+              │  Normalize → Extract →   │
+              │  Clean → Enrich → Build  │
+              └────────────┬────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │    TaggingAgent (LLM)    │
+              │  读取用户已有标签偏好    │
+              │  为每篇文章分配 1-4 标签 │
+              └────────────┬────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │    TrendingService       │
+              │  按 Tag 分组 + 排序     │
+              │  → Trending Report      │
+              └────────────┬────────────┘
+                           │
+              ┌────────────▼────────────┐
+              │    用户浏览 + 收藏       │
+              │  点击 [+] → 选择 KB     │
+              │  → tag weight +1        │
+              │  → 偏好反哺闭环         │
+              └─────────────────────────┘
+```
+
+## 项目结构
+
+```
+sailor/
+├── core/                           # 核心业务逻辑（不依赖 Web 框架）
+│   ├── models.py                   # 领域模型
+│   ├── collector/                  # 多源采集引擎
+│   │   ├── base.py                 # Collector 抽象 + CollectionEngine
+│   │   ├── live_rss_engine.py      # feedparser 实时 RSS 抓取
+│   │   ├── miniflux_engine.py      # Miniflux API 采集
+│   │   ├── rss_engine.py           # 本地 JSON seed 采集
+│   │   └── opml_parser.py          # OPML 解析
+│   ├── pipeline/                   # 预处理流水线
+│   │   ├── base.py                 # Pipeline 基类
+│   │   └── stages.py               # 5 个处理阶段
+│   ├── agent/                      # LLM Agent
+│   │   ├── base.py                 # LLMClient (urllib, 零依赖)
+│   │   ├── tagging_agent.py        # 智能打标 Agent
+│   │   ├── article_agent.py        # 文章深度分析 Agent
+│   │   ├── kb_agent.py             # 知识库聚类 Agent
+│   │   └── prompts.py              # Prompt 模板
+│   ├── storage/                    # 数据持久化
+│   │   ├── db.py                   # SQLite schema (9 tables)
+│   │   ├── repositories.py         # Resource + KB 仓储
+│   │   ├── tag_repository.py       # Tag + ResourceTag + UserAction
+│   │   ├── feed_repository.py      # RSS Feed 仓储
+│   │   ├── analysis_repository.py  # 分析结果仓储
+│   │   └── report_repository.py    # KB 报告仓储
+│   └── services/
+│       ├── ingestion.py            # 采集编排
+│       └── trending.py             # Trending 报告生成
+│
+├── backend/                        # FastAPI Web 层
+│   └── app/
+│       ├── main.py                 # 入口 + 路由挂载
+│       ├── container.py            # 依赖注入
+│       ├── config.py               # 环境变量配置
+│       ├── schemas.py              # Pydantic 模型
+│       └── routers/                # 8 个路由模块
+│           ├── trending.py         # Pipeline + Trending API
+│           ├── tags.py             # 标签 CRUD
+│           ├── knowledge_bases.py  # KB CRUD + 文章管理
+│           ├── feeds.py            # RSS 源管理
+│           ├── resources.py        # 资源查询
+│           ├── tasks.py            # 抓取 + 分析任务
+│           ├── analyses.py         # 分析状态
+│           └── reports.py          # KB 报告
+│
+└── frontend/                       # React 19 + TypeScript + Vite 7
+    └── src/
+        ├── App.tsx                 # NavBar + 页面路由
+        ├── api.ts                  # API 调用封装
+        ├── types.ts                # TypeScript 类型
+        ├── styles.css              # 全局样式
+        ├── components/
+        │   └── NavBar.tsx          # 侧边导航栏
+        └── pages/
+            ├── TrendingPage.tsx    # 📊 Trending 报告
+            ├── TagPage.tsx         # 🏷️ 标签管理
+            ├── KBPage.tsx          # 📚 知识库管理
+            └── FeedPage.tsx        # 📡 订阅源管理
+```
+
+## API 参考
+
+### Pipeline & Trending
+
+| Method | Endpoint | 说明 |
+|--------|----------|------|
+| `POST` | `/trending/pipeline` | 一键执行：抓取 → 打标 → Trending |
+| `POST` | `/trending/generate` | 生成 Trending（触发 LLM 打标） |
+| `GET` | `/trending` | 获取当前 Trending（不触发 LLM） |
+
+### 标签
+
+| Method | Endpoint | 说明 |
+|--------|----------|------|
+| `GET` | `/tags` | 所有标签（按权重排序） |
+| `POST` | `/tags` | 创建标签 |
+| `PUT` | `/tags/{tag_id}` | 更新标签 |
+| `DELETE` | `/tags/{tag_id}` | 删除标签 |
 
 ### 知识库
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/knowledge-bases` | 列出所有知识库 |
-| POST | `/knowledge-bases/{kb_id}/items` | 归档资源到知识库 |
 
-### Feed 管理
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/feeds/import-opml` | 导入 OPML 文件中的 RSS 源 |
-| GET | `/feeds` | 列出所有 Feed |
-| PATCH | `/feeds/{feed_id}?enabled=true` | 启用/禁用 Feed |
+| Method | Endpoint | 说明 |
+|--------|----------|------|
+| `GET` | `/knowledge-bases` | KB 列表 |
+| `POST` | `/knowledge-bases` | 创建 KB |
+| `DELETE` | `/knowledge-bases/{kb_id}` | 删除 KB |
+| `GET` | `/knowledge-bases/{kb_id}/items` | KB 内文章 |
+| `POST` | `/knowledge-bases/{kb_id}/items` | 收藏文章到 KB |
+| `DELETE` | `/knowledge-bases/{kb_id}/items/{resource_id}` | 移除文章 |
 
-### 任务与分析
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/tasks/run-ingestion` | 触发采集 + 入库 |
-| POST | `/tasks/run-analysis` | 触发 AI 批量分析 |
-| GET | `/analyses/status` | 分析进度概览 |
-| GET | `/tasks/main-flow` | 主流程任务列表 |
+### 订阅源
 
-### KB 报告
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/knowledge-bases/{kb_id}/reports` | 生成聚类/关联/总结报告 |
-| GET | `/knowledge-bases/{kb_id}/reports` | 获取所有报告 |
-| GET | `/knowledge-bases/{kb_id}/reports/latest` | 获取最新一轮报告 |
+| Method | Endpoint | 说明 |
+|--------|----------|------|
+| `GET` | `/feeds` | Feed 列表 |
+| `POST` | `/feeds` | 添加 RSS 源 |
+| `DELETE` | `/feeds/{feed_id}` | 删除 Feed |
+| `PATCH` | `/feeds/{feed_id}` | 启用/暂停 |
+| `POST` | `/feeds/import-opml` | 导入 OPML |
+| `GET` | `/feeds/source-status` | 源状态汇总 |
 
-## 环境变量
+### 资源 & 分析
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `SAILOR_DB_PATH` | `./data/sailor.db` | SQLite 数据库路径 |
-| `SAILOR_SEED_FILE` | `./data/seed_entries.json` | 本地种子数据文件 |
-| `SAILOR_OPML_FILE` | `./1.md` | OPML RSS 源文件 |
-| `MINIFLUX_BASE_URL` | （空） | Miniflux 实例地址 |
-| `MINIFLUX_TOKEN` | （空） | Miniflux API Token |
-| `OPENAI_API_KEY` | （空） | OpenAI API Key |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI 兼容 API 地址 |
-| `OPENAI_MODEL` | `gpt-4o-mini` | 使用的模型 |
-| `CORS_ORIGINS` | `http://localhost:5173` | 允许的前端来源 |
-| `VITE_API_BASE` | `http://localhost:8000` | 前端连接的后端地址 |
+| Method | Endpoint | 说明 |
+|--------|----------|------|
+| `GET` | `/resources` | 资源列表 |
+| `POST` | `/tasks/run-ingestion` | 触发采集 |
+| `POST` | `/tasks/run-analysis` | 触发 AI 分析 |
+| `GET` | `/analyses/status` | 分析进度 |
+| `POST` | `/knowledge-bases/{kb_id}/reports` | 生成 KB 报告 |
+
+
+## 配置
+
+所有配置通过环境变量注入，零配置即可启动（SQLite 自动创建）。
+
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `SAILOR_DB_PATH` | `data/sailor.db` | SQLite 数据库路径 |
+| `SAILOR_SEED_FILE` | `data/seed_entries.json` | 本地种子文件路径 |
+| `SAILOR_OPML_FILE` | `1.md` | OPML 导入文件路径 |
+| `OPENAI_API_KEY` | — | OpenAI 兼容 API Key |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | API 端点（支持 DeepSeek / Ollama / vLLM） |
+| `OPENAI_MODEL` | `gpt-4o-mini` | 模型名称 |
+| `MINIFLUX_BASE_URL` | — | Miniflux 实例地址 |
+| `MINIFLUX_TOKEN` | — | Miniflux API Token |
+| `CORS_ORIGINS` | `http://localhost:5173` | 允许的跨域来源（逗号分隔） |
+
+> 不设置 `OPENAI_API_KEY` 时，智能打标和深度分析功能将跳过，其余功能正常使用。
 
 ## 数据库
 
-SQLite，共 6 张表：
+SQLite，零运维，单文件部署。共 9 张表：
 
-| 表 | 用途 |
+| 表名 | 用途 |
+|------|------|
+| `resources` | 采集到的文章/资源 |
+| `knowledge_bases` | 用户创建的知识库 |
+| `kb_items` | 知识库 ↔ 资源关联 |
+| `rss_feeds` | RSS 订阅源 |
+| `resource_analyses` | LLM 文章分析结果 |
+| `kb_reports` | 知识库聚类报告 |
+| `user_tags` | 用户标签（名称 + 颜色 + 权重） |
+| `resource_tags` | 资源 ↔ 标签关联（auto / manual） |
+| `user_actions` | 用户行为日志（收藏、打标等） |
+
+所有表在首次启动时自动创建，无需手动迁移。
+
+## 技术栈
+
+| 层 | 技术 |
 |----|------|
-| `resources` | 经过流水线处理的文章资源 |
-| `knowledge_bases` | 知识库（默认 3 个：LLM Notes / Platform / Product Engineering） |
-| `kb_items` | 资源与知识库的归档关系 |
-| `rss_feeds` | RSS 订阅源管理 |
-| `resource_analyses` | Agent 1 的文章分析结果 |
-| `kb_reports` | Agent 2 的知识库报告 |
-
-## 采集引擎
-
-Sailor 支持三种数据源，由 `CollectionEngine` 统一调度并按 `source + url` 去重：
-
-| 采集器 | 数据源 | 说明 |
-|--------|--------|------|
-| `RSSCollector` | `seed_entries.json` | 本地 JSON 种子数据，离线测试用 |
-| `MinifluxCollector` | Miniflux API | 需要配置 `MINIFLUX_BASE_URL` 和 `MINIFLUX_TOKEN` |
-| `LiveRSSCollector` | 真实 RSS Feed | 基于 feedparser，抓取 `rss_feeds` 表中启用的源 |
-
-## AI Agent
-
-两个 Agent 均通过 OpenAI Chat Completions API 调用，使用 `urllib` 实现（不依赖 openai SDK），支持任何 OpenAI 兼容的 API 服务。
-
-### Agent 1：文章分析
-
-对每篇文章生成：
-- **中文摘要**（200 字以内）
-- **主题标签**（如 LLM, DevOps, Security）
-- **三维评分**（depth 深度 / utility 实用性 / novelty 新颖性，1-10 分）
-- **知识库推荐**（推荐归档到哪个 KB，附置信度和理由）
-- **关键洞察**（核心论点 / 技术要点 / 实践建议）
-
-触发方式：`POST /tasks/run-analysis`（手动触发，可控制成本）
-
-### Agent 2：知识库聚类分析
-
-对知识库内的文章生成三种报告：
-- **聚类报告** — 主题聚类、热门话题、新兴趋势
-- **关联报告** — 文章间关联关系、推荐阅读路径
-- **总结报告** — 知识总结、知识空白、发展建议
-
-前提：KB 内至少 3 篇已分析的文章。输入不传全文，只传摘要 + 主题，控制 token 成本。
-
-触发方式：`POST /knowledge-bases/{kb_id}/reports`
+| 前端 | React 19 · TypeScript · Vite 7 |
+| 后端 | Python 3.11+ · FastAPI · Uvicorn |
+| 数据库 | SQLite（零依赖） |
+| LLM | OpenAI Chat Completions API（兼容协议） |
+| RSS | feedparser · Miniflux API |
+| HTTP | urllib（零第三方依赖的 LLM 客户端） |
 
 ## 设计决策
 
-- **手动触发分析**：避免自动调用 LLM 产生意外费用，用户完全控制分析时机
-- **urllib 而非 openai SDK**：与项目中 MinifluxCollector 风格一致，减少依赖
-- **SQLite 单文件数据库**：零配置，适合个人工具场景
-- **gpt-4o-mini 默认模型**：成本低、速度快，92 个 Feed 全量分析约 $0.5-1.0
-- **OPML 双段去重**：`1.md` 包含英文版和中文版两段 OPML，解析时按 xmlUrl 去重取首次出现的版本
+| 决策 | 理由 |
+|------|------|
+| SQLite 而非 PostgreSQL | 单用户场景，零运维，`cp` 即备份 |
+| urllib 而非 httpx/requests | LLM 客户端零依赖，减少安装摩擦 |
+| 标签权重而非协同过滤 | 单用户无需协同，权重简单有效 |
+| 前端无路由库 | 4 个页面用 state 切换足够，避免引入 react-router |
+| LLM 打标而非规则引擎 | 规则难以覆盖长尾，LLM 理解语义更灵活 |
+| 偏好反哺闭环 | 收藏 → 权重提升 → 下次打标更准，无需显式配置 |
+
+## Contributing
+
+欢迎贡献！请遵循以下流程：
+
+1. Fork 本仓库
+2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 创建 Pull Request
+
+## License
+
+[MIT](LICENSE)
+
+---
+
+<p align="center">
+  Made with ⛵ by Sailor contributors
+</p>

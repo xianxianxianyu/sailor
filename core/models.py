@@ -89,3 +89,31 @@ class KBReport:
     error_message: str | None = None
     created_at: datetime | None = None
     completed_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class UserTag:
+    tag_id: str
+    name: str
+    color: str = "#0f766e"
+    weight: int = 1
+    created_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class UserAction:
+    id: int
+    action_type: str
+    resource_id: str | None = None
+    tag_id: str | None = None
+    kb_id: str | None = None
+    metadata_json: str | None = None
+    created_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class ResourceTag:
+    resource_id: str
+    tag_id: str
+    source: str = "auto"
+    created_at: datetime | None = None

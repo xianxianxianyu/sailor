@@ -92,5 +92,36 @@ class Database:
                     completed_at    TEXT,
                     FOREIGN KEY(kb_id) REFERENCES knowledge_bases(kb_id)
                 );
+
+                CREATE TABLE IF NOT EXISTS user_tags (
+                    tag_id      TEXT PRIMARY KEY,
+                    name        TEXT NOT NULL UNIQUE,
+                    color       TEXT DEFAULT '#0f766e',
+                    weight      INTEGER DEFAULT 1,
+                    created_at  TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS user_actions (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    action_type TEXT NOT NULL,
+                    resource_id TEXT,
+                    tag_id      TEXT,
+                    kb_id       TEXT,
+                    metadata_json TEXT,
+                    created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(resource_id) REFERENCES resources(resource_id),
+                    FOREIGN KEY(tag_id) REFERENCES user_tags(tag_id),
+                    FOREIGN KEY(kb_id) REFERENCES knowledge_bases(kb_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS resource_tags (
+                    resource_id TEXT NOT NULL,
+                    tag_id      TEXT NOT NULL,
+                    source      TEXT NOT NULL DEFAULT 'auto',
+                    created_at  TEXT DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY(resource_id, tag_id),
+                    FOREIGN KEY(resource_id) REFERENCES resources(resource_id),
+                    FOREIGN KEY(tag_id) REFERENCES user_tags(tag_id)
+                );
                 """
             )

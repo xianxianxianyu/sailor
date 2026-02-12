@@ -70,3 +70,53 @@ export type RSSFeed = {
   error_count: number;
   last_error: string | null;
 };
+
+// --- Tag 类型 ---
+
+export type UserTag = {
+  tag_id: string;
+  name: string;
+  color: string;
+  weight: number;
+  created_at: string | null;
+};
+
+// --- Trending 类型 ---
+
+export type TrendingItem = {
+  resource_id: string;
+  title: string;
+  original_url: string;
+  summary: string;
+  tags: string[];
+  source: string;
+};
+
+export type TrendingGroup = {
+  tag_name: string;
+  tag_color: string;
+  items: TrendingItem[];
+};
+
+export type TrendingReport = {
+  groups: TrendingGroup[];
+  total_resources: number;
+  total_tags: number;
+};
+
+export type PipelineResult = {
+  collected: number;
+  processed: number;
+  tagged: number;
+};
+
+// --- KB Item 类型 ---
+
+export type KBItemResource = {
+  resource_id: string;
+  title: string;
+  original_url: string;
+  summary: string;
+  topics: string[];
+  added_at: string;
+};

@@ -1,110 +1,42 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 
-import {
-  addToKnowledgeBase,
-  getKnowledgeBases,
-  getMainFlowTasks,
-  getResourceKnowledgeBases,
-  getResources,
-  runAnalysis,
-  runIngestion,
-} from "./api";
-import AnalysisPanel from "./components/AnalysisPanel";
-import KBPickerModal from "./components/KBPickerModal";
-import KBReportPanel from "./components/KBReportPanel";
-import ResourceCard from "./components/ResourceCard";
-import TaskPanel from "./components/TaskPanel";
-import type { KnowledgeBase, MainFlowTask, Resource } from "./types";
-
-function uniqueTopics(resources: Resource[]): string[] {
-  const values = new Set<string>();
-  resources.forEach((item) => item.topics.forEach((topic) => values.add(topic)));
-  return [...values].sort((a, b) => a.localeCompare(b));
-}
+import { getTrending, runFullPipeline } from "./api";
+import NavBar from "./components/NavBar";
+import type { ViewId } from "./components/NavBar";
+import FeedPage from "./pages/FeedPage";
+import KBPage from "./pages/KBPage";
+import TagPage from "./pages/TagPage";
+import TrendingPage from "./pages/TrendingPage";
+import type { TrendingReport } from "./types";
 
 export default function App() {
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
-  const [tasks, setTasks] = useState<MainFlowTask[]>([]);
-  const [resourceKbMap, setResourceKbMap] = useState<Record<string, KnowledgeBase[]>>({});
-  const [selectedTopic, setSelectedTopic] = useState<string>("");
-  const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
-  const [pickerResource, setPickerResource] = useState<Resource | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [message, setMessage] = useState<string>("");
-  const [selectedKbForReport, setSelectedKbForReport] = useState<string>("");
+  const [activeView, setActiveView] = useState<ViewId>("trending");
+  const [report, setReport] = useState<TrendingReport | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const topics = useMemo(() => uniqueTopics(resources), [resources]);
-
-  async function loadAll(topic?: string) {
-    const [loadedResources, loadedKbs, loadedTasks] = await Promise.all([
-      getResources(topic),
-      getKnowledgeBases(),
-      getMainFlowTasks(),
-    ]);
-    setResources(loadedResources);
-    setKnowledgeBases(loadedKbs);
-    setTasks(loadedTasks);
-
-    const kbPairs = await Promise.all(
-      loadedResources.map(async (resource) => {
-        const kbs = await getResourceKnowledgeBases(resource.resource_id);
-        return [resource.resource_id, kbs] as const;
-      })
-    );
-    setResourceKbMap(Object.fromEntries(kbPairs));
-  }
-
-  useEffect(() => {
-    runIngestion()
-      .then(() => loadAll())
-      .catch(() => setMessage("Initial ingestion failed. Please sync manually."));
-  }, []);
-
-  async function onSync() {
+  async function handlePipeline() {
+    setLoading(true);
+    setMessage("");
     try {
-      setBusy(true);
-      const result = await runIngestion();
-      await loadAll(selectedTopic || undefined);
-      setMessage(`Synced ${result.processed_count} resources.`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function onAnalyze() {
-    try {
-      setAnalyzing(true);
-      const result = await runAnalysis();
-      setMessage(`Analyzed ${result.analyzed_count} resources. ${result.failed_count} failed.`);
+      const result = await runFullPipeline();
+      setMessage(`抓取 ${result.collected} 篇，处理 ${result.processed} 篇，打标 ${result.tagged} 条`);
+      const trending = await getTrending();
+      setReport(trending);
+      setActiveView("trending");
     } catch {
-      setMessage("Analysis failed. Check API key configuration.");
+      setMessage("Pipeline 执行失败，请检查配置。");
     } finally {
-      setAnalyzing(false);
+      setLoading(false);
     }
   }
 
-  async function onTopicChange(topic: string) {
-    setSelectedTopic(topic);
-    await loadAll(topic || undefined);
-  }
-
-  async function onConfirmAdd(kbId: string) {
-    if (!pickerResource) {
-      return;
-    }
-
-    setBusy(true);
+  async function handleRefresh() {
     try {
-      await addToKnowledgeBase(kbId, pickerResource.resource_id);
-      const kbs = await getResourceKnowledgeBases(pickerResource.resource_id);
-      setResourceKbMap((prev) => ({ ...prev, [pickerResource.resource_id]: kbs }));
-      setMessage(`Added to ${knowledgeBases.find((kb) => kb.kb_id === kbId)?.name ?? "knowledge base"}.`);
-      setPickerResource(null);
-      await loadAll(selectedTopic || undefined);
-    } finally {
-      setBusy(false);
+      const trending = await getTrending();
+      setReport(trending);
+    } catch {
+      setMessage("获取 Trending 失败");
     }
   }
 
@@ -112,102 +44,28 @@ export default function App() {
     <div className="app-shell">
       <header className="hero">
         <div>
-          <h1>Sailor Inbox</h1>
-          <p>Scan high-signal resources, review details, and archive into your knowledge bases.</p>
+          <h1>Sailor</h1>
+          <p>一键抓取 → 智能打标 → Trending 报告 → 知识库收藏</p>
         </div>
         <div className="hero-actions">
-          <select value={selectedTopic} onChange={(event) => onTopicChange(event.target.value)}>
-            <option value="">All Topics</option>
-            {topics.map((topic) => (
-              <option key={topic} value={topic}>
-                {topic}
-              </option>
-            ))}
-          </select>
-          <button onClick={onSync} disabled={busy}>
-            {busy ? "Syncing..." : "Sync Ingestion"}
+          <button onClick={handlePipeline} disabled={loading} className="pipeline-btn">
+            {loading ? "执行中..." : "🚀 一键抓取"}
           </button>
-          <button onClick={onAnalyze} disabled={analyzing} className="analyze-btn">
-            {analyzing ? "Analyzing..." : "Analyze All"}
-          </button>
+          <button onClick={handleRefresh} disabled={loading}>刷新</button>
         </div>
       </header>
 
-      {message ? <p className="message">{message}</p> : null}
+      {message && <p className="message">{message}</p>}
 
-      <main className="layout-grid">
-        <section className="feed-section">
-          <h2>Resource Feed</h2>
-          {resources.length === 0 ? <div className="empty">No inbox resources.</div> : null}
-          <div className="feed-grid">
-            {resources.map((resource) => (
-              <ResourceCard
-                key={resource.resource_id}
-                resource={resource}
-                archivedCount={resourceKbMap[resource.resource_id]?.length ?? 0}
-                onOpen={setSelectedResource}
-                onAdd={setPickerResource}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section className="detail-panel">
-          <h2>Resource Detail</h2>
-          {selectedResource ? (
-            <article>
-              <h3>{selectedResource.title}</h3>
-              <div className="topic-row">
-                {selectedResource.topics.map((topic) => (
-                  <span key={topic} className="topic-chip">
-                    {topic}
-                  </span>
-                ))}
-              </div>
-              <p>{selectedResource.text || selectedResource.summary}</p>
-              <div className="detail-actions">
-                <a href={selectedResource.original_url} target="_blank" rel="noreferrer">
-                  Open original article
-                </a>
-                <button onClick={() => setPickerResource(selectedResource)}>+ Add to KB</button>
-              </div>
-              <AnalysisPanel resourceId={selectedResource.resource_id} />
-            </article>
-          ) : (
-            <div className="empty">Pick a resource from the feed to review details.</div>
-          )}
-        </section>
-
-        <aside className="right-panel">
-          <TaskPanel tasks={tasks} />
-
-          <div className="kb-report-section">
-            <h2>KB Reports</h2>
-            <select
-              value={selectedKbForReport}
-              onChange={(e) => setSelectedKbForReport(e.target.value)}
-            >
-              <option value="">Select KB...</option>
-              {knowledgeBases.map((kb) => (
-                <option key={kb.kb_id} value={kb.kb_id}>
-                  {kb.name}
-                </option>
-              ))}
-            </select>
-            {selectedKbForReport && <KBReportPanel kbId={selectedKbForReport} />}
-          </div>
-        </aside>
-      </main>
-
-      <KBPickerModal
-        open={Boolean(pickerResource)}
-        resourceTitle={pickerResource?.title ?? ""}
-        knowledgeBases={knowledgeBases}
-        knownKbIds={pickerResource ? (resourceKbMap[pickerResource.resource_id] ?? []).map((kb) => kb.kb_id) : []}
-        submitting={busy}
-        onCancel={() => setPickerResource(null)}
-        onConfirm={onConfirmAdd}
-      />
+      <div className="app-body">
+        <NavBar active={activeView} onChange={setActiveView} />
+        <main className="main-area">
+          {activeView === "trending" && <TrendingPage report={report} loading={loading} />}
+          {activeView === "tags" && <TagPage onNavigateToTrending={() => setActiveView("trending")} />}
+          {activeView === "kb" && <KBPage />}
+          {activeView === "feeds" && <FeedPage />}
+        </main>
+      </div>
     </div>
   );
 }

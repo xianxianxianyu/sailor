@@ -6,6 +6,7 @@ from pathlib import Path
 from core.agent.article_agent import ArticleAnalysisAgent
 from core.agent.base import LLMClient, LLMConfig
 from core.agent.kb_agent import KBClusterAgent
+from core.agent.tagging_agent import TaggingAgent
 from core.collector import CollectionEngine, LiveRSSCollector, MinifluxCollector, RSSCollector
 from core.pipeline import build_default_pipeline
 from core.services import IngestionService
@@ -16,6 +17,7 @@ from core.storage import (
     KBReportRepository,
     KnowledgeBaseRepository,
     ResourceRepository,
+    TagRepository,
 )
 from core.tasks import MainUserFlowTaskPlanner
 
@@ -31,11 +33,13 @@ class AppContainer:
     feed_repo: FeedRepository
     analysis_repo: AnalysisRepository
     report_repo: KBReportRepository
+    tag_repo: TagRepository
     ingestion_service: IngestionService
     task_planner: MainUserFlowTaskPlanner
     llm_client: LLMClient
     article_agent: ArticleAnalysisAgent
     kb_agent: KBClusterAgent
+    tagging_agent: TaggingAgent
 
 
 def build_container(project_root: Path) -> AppContainer:
@@ -49,6 +53,7 @@ def build_container(project_root: Path) -> AppContainer:
     feed_repo = FeedRepository(db)
     analysis_repo = AnalysisRepository(db)
     report_repo = KBReportRepository(db)
+    tag_repo = TagRepository(db)
 
     collectors = [
         RSSCollector(seed_file=settings.seed_file, source_name="rss"),
@@ -85,6 +90,7 @@ def build_container(project_root: Path) -> AppContainer:
         resource_repo=resource_repo,
         kb_repo=kb_repo,
     )
+    tagging_agent = TaggingAgent(llm=llm_client, tag_repo=tag_repo)
 
     return AppContainer(
         settings=settings,
@@ -94,9 +100,11 @@ def build_container(project_root: Path) -> AppContainer:
         feed_repo=feed_repo,
         analysis_repo=analysis_repo,
         report_repo=report_repo,
+        tag_repo=tag_repo,
         ingestion_service=ingestion_service,
         task_planner=task_planner,
         llm_client=llm_client,
         article_agent=article_agent,
         kb_agent=kb_agent,
+        tagging_agent=tagging_agent,
     )
