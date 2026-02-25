@@ -689,3 +689,92 @@ body {
 
   .hero { flex-direction: column; align-items: flex-start; }
 }
+
+
+/* ===== Log Panel ===== */
+
+.log-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 280px;
+  background: #1e293b;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  z-index: 200;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
+}
+
+.log-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #0f172a;
+  border-bottom: 1px solid #334155;
+}
+
+.log-panel-header span {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.log-panel-header button {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.log-panel-header button:hover {
+  color: #e2e8f0;
+}
+
+.log-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+  font-family: "JetBrains Mono", "Fira Code", monospace;
+  font-size: 0.78rem;
+}
+
+.log-empty {
+  color: #64748b;
+  text-align: center;
+  padding: 2rem;
+}
+
+.log-entry {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+  border-bottom: 1px solid #334155;
+}
+
+.log-time {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.log-level {
+  font-weight: 600;
+  flex-shrink: 0;
+  width: 60px;
+}
+
+.log-level-info { color: #38bdf8; }
+.log-level-warning { color: #fbbf24; }
+.log-level-error { color: #f87171; }
+.log-level-debug { color: #94a3b8; }
+
+.log-message {
+  color: #e2e8f0;
+  word-break: break-all;
+}
+
+.log-info .log-message { color: #e2e8f0; }
+.log-warning .log-message { color: #fbbf24; }
+.log-error .log-message { color: #f87171; }

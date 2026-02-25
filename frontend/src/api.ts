@@ -245,3 +245,33 @@ export function getKBItems(kbId: string): Promise<KBItemResource[]> {
 export function removeKBItem(kbId: string, resourceId: string): Promise<void> {
   return requestJson(`/knowledge-bases/${kbId}/items/${resourceId}`, { method: "DELETE" }).then(() => undefined);
 }
+
+// --- 日志 API ---
+
+export interface LogEntry {
+  time: string;
+  level: string;
+  message: string;
+}
+
+export function getRecentLogs(limit = 50): Promise<LogEntry[]> {
+  return requestJson(`/logs?limit=${limit}`);
+}
+
+export function createLogStream(): EventSource {
+  return new EventSource(`${API_BASE}/logs/stream`);
+}
+
+// --- 抓取状态 API ---
+
+export interface IngestionStatus {
+  status: "idle" | "running" | "completed";
+  last_run: string | null;
+  new_count: number;
+  updated_count: number;
+  skipped_count: number;
+}
+
+export function getIngestionStatus(): Promise<IngestionStatus> {
+  return requestJson("/tasks/ingestion-status");
+}

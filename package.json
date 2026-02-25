@@ -3,7 +3,9 @@
   "private": true,
   "main": "electron/main.cjs",
   "scripts": {
+    "predev": "npm install && npm --prefix frontend install && pip install -r backend/requirements.txt",
     "dev": "concurrently -k -n BACKEND,FRONTEND -c green,cyan \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "predesktop:dev": "npm install",
     "desktop:dev": "electron .",
     "dev:backend": "python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000",
     "dev:frontend": "npm --prefix frontend run dev -- --host localhost --port 5173",

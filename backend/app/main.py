@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -15,7 +16,15 @@ from backend.app.routers.reports import mount_report_routes
 from backend.app.routers.sources import mount_source_routes
 from backend.app.routers.tags import mount_tag_routes
 from backend.app.routers.trending import mount_trending_routes
+from backend.app.routers.logs import mount_log_routes
 
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger("sailor")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 container = build_container(PROJECT_ROOT)
@@ -39,6 +48,15 @@ app.include_router(mount_analysis_routes(container))
 app.include_router(mount_report_routes(container))
 app.include_router(mount_tag_routes(container))
 app.include_router(mount_trending_routes(container))
+app.include_router(mount_log_routes(container))
+
+
+@app.on_event("startup")
+async def startup_event():
+    logger.info("=" * 50)
+    logger.info("🚀 Sailor Backend 启动")
+    logger.info(f"   项目路径: {PROJECT_ROOT}")
+    logger.info("=" * 50)
 
 
 @app.get("/healthz")

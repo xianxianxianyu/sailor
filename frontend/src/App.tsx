@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { getTrending, runFullPipeline } from "./api";
 import NavBar from "./components/NavBar";
+import LogPanel from "./components/LogPanel";
 import type { ViewId } from "./components/NavBar";
 import FeedPage from "./pages/FeedPage";
 import KBPage from "./pages/KBPage";
@@ -14,6 +15,7 @@ export default function App() {
   const [report, setReport] = useState<TrendingReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [showLogs, setShowLogs] = useState(false);
 
   async function handlePipeline() {
     setLoading(true);
@@ -52,6 +54,9 @@ export default function App() {
             {loading ? "执行中..." : "🚀 一键抓取"}
           </button>
           <button onClick={handleRefresh} disabled={loading}>刷新</button>
+          <button onClick={() => setShowLogs(!showLogs)} className={showLogs ? "active" : ""}>
+            📋 日志
+          </button>
         </div>
       </header>
 
@@ -66,6 +71,8 @@ export default function App() {
           {activeView === "feeds" && <FeedPage />}
         </main>
       </div>
+
+      <LogPanel isOpen={showLogs} onClose={() => setShowLogs(false)} />
     </div>
   );
 }
