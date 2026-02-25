@@ -1,0 +1,841 @@
+{
+  "format": "SailorRSSConfig",
+  "version": 1,
+  "generated_from": "1.md",
+  "generated_at": "2026-02-25T06:41:28.176015Z",
+  "defaults": {
+    "source_type": "rss",
+    "enabled": true,
+    "poll_minutes": 30
+  },
+  "sources": [
+    {
+      "source_id": "feed_052434531db8",
+      "name": "simonwillison.net",
+      "xml_url": "https://simonwillison.net/atom/everything/",
+      "html_url": "https://simonwillison.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_99e2c21c8334",
+      "name": "jeffgeerling.com",
+      "xml_url": "https://www.jeffgeerling.com/blog.xml",
+      "html_url": "https://jeffgeerling.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_5b15950a2f66",
+      "name": "seangoedecke.com",
+      "xml_url": "https://www.seangoedecke.com/rss.xml",
+      "html_url": "https://seangoedecke.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_4359bb4a3387",
+      "name": "krebsonsecurity.com",
+      "xml_url": "https://krebsonsecurity.com/feed/",
+      "html_url": "https://krebsonsecurity.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_6eaf402c6927",
+      "name": "daringfireball.net",
+      "xml_url": "https://daringfireball.net/feeds/main",
+      "html_url": "https://daringfireball.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_a61777605e36",
+      "name": "ericmigi.com",
+      "xml_url": "https://ericmigi.com/rss.xml",
+      "html_url": "https://ericmigi.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_c0f4b24763ff",
+      "name": "antirez.com",
+      "xml_url": "http://antirez.com/rss",
+      "html_url": "http://antirez.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_81f55676967c",
+      "name": "idiallo.com",
+      "xml_url": "https://idiallo.com/feed.rss",
+      "html_url": "https://idiallo.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_396f090452a7",
+      "name": "maurycyz.com",
+      "xml_url": "https://maurycyz.com/index.xml",
+      "html_url": "https://maurycyz.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_0a8471bbdabc",
+      "name": "pluralistic.net",
+      "xml_url": "https://pluralistic.net/feed/",
+      "html_url": "https://pluralistic.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_030398bf6149",
+      "name": "shkspr.mobi",
+      "xml_url": "https://shkspr.mobi/blog/feed/",
+      "html_url": "https://shkspr.mobi",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_1f0f44467f80",
+      "name": "lcamtuf.substack.com",
+      "xml_url": "https://lcamtuf.substack.com/feed",
+      "html_url": "https://lcamtuf.substack.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_64b519bb5e5f",
+      "name": "mitchellh.com",
+      "xml_url": "https://mitchellh.com/feed.xml",
+      "html_url": "https://mitchellh.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_d6abad9d48f6",
+      "name": "dynomight.net",
+      "xml_url": "https://dynomight.net/feed.xml",
+      "html_url": "https://dynomight.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_7958ea20b066",
+      "name": "utcc.utoronto.ca/~cks",
+      "xml_url": "https://utcc.utoronto.ca/~cks/space/blog/?atom",
+      "html_url": "https://utcc.utoronto.ca/~cks",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_db28536d226b",
+      "name": "xeiaso.net",
+      "xml_url": "https://xeiaso.net/blog.rss",
+      "html_url": "https://xeiaso.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_afae77b077c2",
+      "name": "devblogs.microsoft.com/oldnewthing",
+      "xml_url": "https://devblogs.microsoft.com/oldnewthing/feed",
+      "html_url": "https://devblogs.microsoft.com/oldnewthing",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_f07d072e1234",
+      "name": "righto.com",
+      "xml_url": "https://www.righto.com/feeds/posts/default",
+      "html_url": "https://righto.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_f3dd435da7ca",
+      "name": "lucumr.pocoo.org",
+      "xml_url": "https://lucumr.pocoo.org/feed.atom",
+      "html_url": "https://lucumr.pocoo.org",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_b2c3b984fee3",
+      "name": "skyfall.dev",
+      "xml_url": "https://skyfall.dev/rss.xml",
+      "html_url": "https://skyfall.dev",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_ea33fa472706",
+      "name": "garymarcus.substack.com",
+      "xml_url": "https://garymarcus.substack.com/feed",
+      "html_url": "https://garymarcus.substack.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_528672069506",
+      "name": "rachelbythebay.com",
+      "xml_url": "https://rachelbythebay.com/w/atom.xml",
+      "html_url": "https://rachelbythebay.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_449cde1ff77e",
+      "name": "overreacted.io",
+      "xml_url": "https://overreacted.io/rss.xml",
+      "html_url": "https://overreacted.io",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_a3b87b58c003",
+      "name": "timsh.org",
+      "xml_url": "https://timsh.org/rss/",
+      "html_url": "https://timsh.org",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_0befdd2bc543",
+      "name": "johndcook.com",
+      "xml_url": "https://www.johndcook.com/blog/feed/",
+      "html_url": "https://johndcook.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_49fb41625205",
+      "name": "gilesthomas.com",
+      "xml_url": "https://gilesthomas.com/feed/rss.xml",
+      "html_url": "https://gilesthomas.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_541eb97207b3",
+      "name": "matklad.github.io",
+      "xml_url": "https://matklad.github.io/feed.xml",
+      "html_url": "https://matklad.github.io",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_50cc9c554491",
+      "name": "derekthompson.org",
+      "xml_url": "https://www.theatlantic.com/feed/author/derek-thompson/",
+      "html_url": "https://derekthompson.org",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_ba543586ec14",
+      "name": "evanhahn.com",
+      "xml_url": "https://evanhahn.com/feed.xml",
+      "html_url": "https://evanhahn.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_8d3f1e6f7068",
+      "name": "terriblesoftware.org",
+      "xml_url": "https://terriblesoftware.org/feed/",
+      "html_url": "https://terriblesoftware.org",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_d07fb2f032f8",
+      "name": "rakhim.exotext.com",
+      "xml_url": "https://rakhim.exotext.com/rss.xml",
+      "html_url": "https://rakhim.exotext.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_68efaa38fb04",
+      "name": "joanwestenberg.com",
+      "xml_url": "https://joanwestenberg.com/rss",
+      "html_url": "https://joanwestenberg.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_2b7e04e02a9b",
+      "name": "xania.org",
+      "xml_url": "https://xania.org/feed",
+      "html_url": "https://xania.org",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_5b9cd62dff86",
+      "name": "micahflee.com",
+      "xml_url": "https://micahflee.com/feed/",
+      "html_url": "https://micahflee.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_756042742b8a",
+      "name": "nesbitt.io",
+      "xml_url": "https://nesbitt.io/feed.xml",
+      "html_url": "https://nesbitt.io",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_4855fd2d0153",
+      "name": "construction-physics.com",
+      "xml_url": "https://www.construction-physics.com/feed",
+      "html_url": "https://construction-physics.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_704865dd9800",
+      "name": "tedium.co",
+      "xml_url": "https://feed.tedium.co/",
+      "html_url": "https://tedium.co",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_8e920d240c80",
+      "name": "susam.net",
+      "xml_url": "https://susam.net/feed.xml",
+      "html_url": "https://susam.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_2cd576d34168",
+      "name": "entropicthoughts.com",
+      "xml_url": "https://entropicthoughts.com/feed.xml",
+      "html_url": "https://entropicthoughts.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_c6b8c4887266",
+      "name": "buttondown.com/hillelwayne",
+      "xml_url": "https://buttondown.com/hillelwayne/rss",
+      "html_url": "https://buttondown.com/hillelwayne",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_aa795f5d8bf7",
+      "name": "dwarkesh.com",
+      "xml_url": "https://www.dwarkeshpatel.com/feed",
+      "html_url": "https://dwarkesh.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_c243ca13e1c1",
+      "name": "borretti.me",
+      "xml_url": "https://borretti.me/feed.xml",
+      "html_url": "https://borretti.me",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_505f02d2c421",
+      "name": "wheresyoured.at",
+      "xml_url": "https://www.wheresyoured.at/rss/",
+      "html_url": "https://wheresyoured.at",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_f973f9094190",
+      "name": "jayd.ml",
+      "xml_url": "https://jayd.ml/feed.xml",
+      "html_url": "https://jayd.ml",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_8a16d3dbf117",
+      "name": "minimaxir.com",
+      "xml_url": "https://minimaxir.com/index.xml",
+      "html_url": "https://minimaxir.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_68e950f671d2",
+      "name": "geohot.github.io",
+      "xml_url": "https://geohot.github.io/blog/feed.xml",
+      "html_url": "https://geohot.github.io",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_b41056fdf74f",
+      "name": "paulgraham.com",
+      "xml_url": "http://www.aaronsw.com/2002/feeds/pgessays.rss",
+      "html_url": "https://paulgraham.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_3a8a2496eddb",
+      "name": "filfre.net",
+      "xml_url": "https://www.filfre.net/feed/",
+      "html_url": "https://filfre.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_fafb02ce167d",
+      "name": "blog.jim-nielsen.com",
+      "xml_url": "https://blog.jim-nielsen.com/feed.xml",
+      "html_url": "https://blog.jim-nielsen.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_541f6adb32e9",
+      "name": "dfarq.homeip.net",
+      "xml_url": "https://dfarq.homeip.net/feed/",
+      "html_url": "https://dfarq.homeip.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_74d858071d9f",
+      "name": "jyn.dev",
+      "xml_url": "https://jyn.dev/atom.xml",
+      "html_url": "https://jyn.dev",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_2bfabf868f69",
+      "name": "geoffreylitt.com",
+      "xml_url": "https://www.geoffreylitt.com/feed.xml",
+      "html_url": "https://geoffreylitt.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_0737dfe90fda",
+      "name": "downtowndougbrown.com",
+      "xml_url": "https://www.downtowndougbrown.com/feed/",
+      "html_url": "https://downtowndougbrown.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_b70cec289e97",
+      "name": "brutecat.com",
+      "xml_url": "https://brutecat.com/rss.xml",
+      "html_url": "https://brutecat.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_f24ed5bab7a6",
+      "name": "eli.thegreenplace.net",
+      "xml_url": "https://eli.thegreenplace.net/feeds/all.atom.xml",
+      "html_url": "https://eli.thegreenplace.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_a84582a94d60",
+      "name": "abortretry.fail",
+      "xml_url": "https://www.abortretry.fail/feed",
+      "html_url": "https://abortretry.fail",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_ce9ad60b092e",
+      "name": "fabiensanglard.net",
+      "xml_url": "https://fabiensanglard.net/rss.xml",
+      "html_url": "https://fabiensanglard.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_542183fd152e",
+      "name": "oldvcr.blogspot.com",
+      "xml_url": "https://oldvcr.blogspot.com/feeds/posts/default",
+      "html_url": "https://oldvcr.blogspot.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_10891151e6c0",
+      "name": "bogdanthegeek.github.io",
+      "xml_url": "https://bogdanthegeek.github.io/blog/index.xml",
+      "html_url": "https://bogdanthegeek.github.io",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_00f20348abd8",
+      "name": "hugotunius.se",
+      "xml_url": "https://hugotunius.se/feed.xml",
+      "html_url": "https://hugotunius.se",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_5fceae60a125",
+      "name": "gwern.net",
+      "xml_url": "https://gwern.substack.com/feed",
+      "html_url": "https://gwern.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_3b12c0f59c06",
+      "name": "berthub.eu",
+      "xml_url": "https://berthub.eu/articles/index.xml",
+      "html_url": "https://berthub.eu",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_912454e6b50a",
+      "name": "chadnauseam.com",
+      "xml_url": "https://chadnauseam.com/rss.xml",
+      "html_url": "https://chadnauseam.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_a6c4e18392bf",
+      "name": "simone.org",
+      "xml_url": "https://simone.org/feed/",
+      "html_url": "https://simone.org",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_abeb3d886027",
+      "name": "it-notes.dragas.net",
+      "xml_url": "https://it-notes.dragas.net/feed/",
+      "html_url": "https://it-notes.dragas.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_770187db2708",
+      "name": "beej.us",
+      "xml_url": "https://beej.us/blog/rss.xml",
+      "html_url": "https://beej.us",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_59ba11b41f28",
+      "name": "hey.paris",
+      "xml_url": "https://hey.paris/index.xml",
+      "html_url": "https://hey.paris",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_6741c6bee254",
+      "name": "danielwirtz.com",
+      "xml_url": "https://danielwirtz.com/rss.xml",
+      "html_url": "https://danielwirtz.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_7fc8e6f5be9d",
+      "name": "matduggan.com",
+      "xml_url": "https://matduggan.com/rss/",
+      "html_url": "https://matduggan.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_7f96838ab754",
+      "name": "refactoringenglish.com",
+      "xml_url": "https://refactoringenglish.com/index.xml",
+      "html_url": "https://refactoringenglish.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_1d25fb990936",
+      "name": "worksonmymachine.substack.com",
+      "xml_url": "https://worksonmymachine.substack.com/feed",
+      "html_url": "https://worksonmymachine.substack.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_dd4ff9dce4ff",
+      "name": "philiplaine.com",
+      "xml_url": "https://philiplaine.com/index.xml",
+      "html_url": "https://philiplaine.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_d542e2e615ae",
+      "name": "steveblank.com",
+      "xml_url": "https://steveblank.com/feed/",
+      "html_url": "https://steveblank.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_2b2c3f5ac3d2",
+      "name": "bernsteinbear.com",
+      "xml_url": "https://bernsteinbear.com/feed.xml",
+      "html_url": "https://bernsteinbear.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_1f2e37993790",
+      "name": "danieldelaney.net",
+      "xml_url": "https://danieldelaney.net/feed",
+      "html_url": "https://danieldelaney.net",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_2ca35d6c0a43",
+      "name": "troyhunt.com",
+      "xml_url": "https://www.troyhunt.com/rss/",
+      "html_url": "https://troyhunt.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_59990f9eb0e3",
+      "name": "herman.bearblog.dev",
+      "xml_url": "https://herman.bearblog.dev/feed/",
+      "html_url": "https://herman.bearblog.dev",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_942a4d2bf3a9",
+      "name": "tomrenner.com",
+      "xml_url": "https://tomrenner.com/index.xml",
+      "html_url": "https://tomrenner.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_a5e5165c8f66",
+      "name": "blog.pixelmelt.dev",
+      "xml_url": "https://blog.pixelmelt.dev/rss/",
+      "html_url": "https://blog.pixelmelt.dev",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_14a2e6653864",
+      "name": "martinalderson.com",
+      "xml_url": "https://martinalderson.com/feed.xml",
+      "html_url": "https://martinalderson.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_e54b020d8584",
+      "name": "danielchasehooper.com",
+      "xml_url": "https://danielchasehooper.com/feed.xml",
+      "html_url": "https://danielchasehooper.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_8340a4835cec",
+      "name": "chiark.greenend.org.uk/~sgtatham",
+      "xml_url": "https://www.chiark.greenend.org.uk/~sgtatham/quasiblog/feed.xml",
+      "html_url": "https://chiark.greenend.org.uk/~sgtatham",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_8299c27feb6c",
+      "name": "grantslatton.com",
+      "xml_url": "https://grantslatton.com/rss.xml",
+      "html_url": "https://grantslatton.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_3b7b03f6ccfd",
+      "name": "experimental-history.com",
+      "xml_url": "https://www.experimental-history.com/feed",
+      "html_url": "https://experimental-history.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_0f15fed2a48f",
+      "name": "anildash.com",
+      "xml_url": "https://anildash.com/feed.xml",
+      "html_url": "https://anildash.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_84d542a6144d",
+      "name": "aresluna.org",
+      "xml_url": "https://aresluna.org/main.rss",
+      "html_url": "https://aresluna.org",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_4977f17e33d9",
+      "name": "michael.stapelberg.ch",
+      "xml_url": "https://michael.stapelberg.ch/feed.xml",
+      "html_url": "https://michael.stapelberg.ch",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_f3104e212f9e",
+      "name": "miguelgrinberg.com",
+      "xml_url": "https://blog.miguelgrinberg.com/feed",
+      "html_url": "https://miguelgrinberg.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_9dcadfa39ef0",
+      "name": "keygen.sh",
+      "xml_url": "https://keygen.sh/blog/feed.xml",
+      "html_url": "https://keygen.sh",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_2c8821e7f2c3",
+      "name": "mjg59.dreamwidth.org",
+      "xml_url": "https://mjg59.dreamwidth.org/data/rss",
+      "html_url": "https://mjg59.dreamwidth.org",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_59cab0e069ce",
+      "name": "computer.rip",
+      "xml_url": "https://computer.rip/rss.xml",
+      "html_url": "https://computer.rip",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    },
+    {
+      "source_id": "feed_1c8b39a0a69e",
+      "name": "tedunangst.com",
+      "xml_url": "https://www.tedunangst.com/flak/rss",
+      "html_url": "https://tedunangst.com",
+      "enabled": true,
+      "poll_minutes": 30,
+      "tags": []
+    }
+  ]
+}

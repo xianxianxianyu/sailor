@@ -60,6 +60,53 @@ class Database:
                     created_at      TEXT DEFAULT CURRENT_TIMESTAMP
                 );
 
+                CREATE TABLE IF NOT EXISTS source_registry (
+                    source_id         TEXT PRIMARY KEY,
+                    source_type       TEXT NOT NULL,
+                    name              TEXT NOT NULL,
+                    endpoint          TEXT,
+                    config_json       TEXT NOT NULL DEFAULT '{}',
+                    enabled           INTEGER NOT NULL DEFAULT 1,
+                    schedule_minutes  INTEGER NOT NULL DEFAULT 30,
+                    last_run_at       TEXT,
+                    error_count       INTEGER NOT NULL DEFAULT 0,
+                    last_error        TEXT,
+                    created_at        TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at        TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS source_run_log (
+                    run_id            TEXT PRIMARY KEY,
+                    source_id         TEXT NOT NULL,
+                    started_at        TEXT NOT NULL,
+                    finished_at       TEXT,
+                    status            TEXT NOT NULL,
+                    fetched_count     INTEGER NOT NULL DEFAULT 0,
+                    processed_count   INTEGER NOT NULL DEFAULT 0,
+                    error_message     TEXT,
+                    metadata_json     TEXT NOT NULL DEFAULT '{}',
+                    FOREIGN KEY(source_id) REFERENCES source_registry(source_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS source_item_index (
+                    source_id         TEXT NOT NULL,
+                    item_key          TEXT NOT NULL,
+                    canonical_url     TEXT,
+                    resource_id       TEXT,
+                    last_seen_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY(source_id, item_key),
+                    FOREIGN KEY(source_id) REFERENCES source_registry(source_id)
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_source_registry_type_enabled
+                ON source_registry(source_type, enabled);
+
+                CREATE INDEX IF NOT EXISTS idx_source_run_log_source_started
+                ON source_run_log(source_id, started_at DESC);
+
+                CREATE INDEX IF NOT EXISTS idx_source_item_index_canonical
+                ON source_item_index(canonical_url);
+
                 CREATE TABLE IF NOT EXISTS resource_analyses (
                     resource_id         TEXT PRIMARY KEY,
                     summary             TEXT NOT NULL,

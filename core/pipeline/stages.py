@@ -75,8 +75,10 @@ class BuildResourceStage(PipelineStage):
             canonical_url=canonical,
             source=context.entry.source,
             provenance={
-                "miniflux_feed_id": context.entry.feed_id,
-                "miniflux_entry_id": context.entry.entry_id,
+                "source_type": context.entry.source,
+                "source_id": context.entry.feed_id,
+                "entry_native_id": context.entry.entry_id,
+                "adapter_version": "v1",
                 "captured_at": context.entry.captured_at.isoformat(),
             },
             title=context.entry.title,

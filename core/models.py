@@ -59,6 +59,35 @@ class RSSFeed:
 
 
 @dataclass(slots=True)
+class SourceRecord:
+    source_id: str
+    source_type: str
+    name: str
+    endpoint: str | None = None
+    config: dict[str, Any] = field(default_factory=dict)
+    enabled: bool = True
+    schedule_minutes: int = 30
+    last_run_at: datetime | None = None
+    error_count: int = 0
+    last_error: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class SourceRunLog:
+    run_id: str
+    source_id: str
+    started_at: datetime
+    finished_at: datetime | None = None
+    status: str = "running"
+    fetched_count: int = 0
+    processed_count: int = 0
+    error_message: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
 class ResourceAnalysis:
     resource_id: str
     summary: str

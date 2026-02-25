@@ -1,4 +1,19 @@
-import type { AnalysisStatus, KBItemResource, KBReport, KnowledgeBase, MainFlowTask, PipelineResult, Resource, ResourceAnalysis, RSSFeed, TrendingReport, UserTag } from "./types";
+import type {
+  AnalysisStatus,
+  KBItemResource,
+  KBReport,
+  KnowledgeBase,
+  MainFlowTask,
+  PipelineResult,
+  Resource,
+  ResourceAnalysis,
+  RSSFeed,
+  SourceRecord,
+  SourceRun,
+  SourceStatus,
+  TrendingReport,
+  UserTag,
+} from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
 
@@ -115,6 +130,68 @@ export function getSourceStatus(): Promise<{
   seed_file_exists: boolean;
 }> {
   return requestJson("/feeds/source-status");
+}
+
+export function getSources(sourceType?: string, enabledOnly = false): Promise<SourceRecord[]> {
+  const params = new URLSearchParams();
+  if (sourceType) params.set("source_type", sourceType);
+  if (enabledOnly) params.set("enabled_only", "true");
+  const suffix = params.toString();
+  return requestJson(`/sources${suffix ? `?${suffix}` : ""}`);
+}
+
+export function createSource(payload: {
+  source_id?: string;
+  source_type: string;
+  name: string;
+  endpoint?: string | null;
+  config?: Record<string, unknown>;
+  enabled?: boolean;
+  schedule_minutes?: number;
+}): Promise<SourceRecord> {
+  return requestJson("/sources", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateSource(
+  sourceId: string,
+  payload: {
+    name?: string;
+    endpoint?: string | null;
+    config?: Record<string, unknown>;
+    enabled?: boolean;
+    schedule_minutes?: number;
+  }
+): Promise<SourceRecord> {
+  return requestJson(`/sources/${sourceId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteSource(sourceId: string): Promise<void> {
+  return requestJson(`/sources/${sourceId}`, { method: "DELETE" }).then(() => undefined);
+}
+
+export function getUnifiedSourceStatus(): Promise<SourceStatus> {
+  return requestJson("/sources/status");
+}
+
+export function importLocalSources(configFile?: string): Promise<{ imported: number; rss_synced: number; total_parsed: number }> {
+  return requestJson("/sources/import-local", {
+    method: "POST",
+    body: JSON.stringify(configFile ? { config_file: configFile } : {}),
+  });
+}
+
+export function runSource(sourceId: string): Promise<{ run_id: string; source_id: string; status: string; fetched_count: number; processed_count: number }> {
+  return requestJson(`/sources/${sourceId}/run`, { method: "POST" });
+}
+
+export function getSourceRuns(sourceId: string, limit = 20): Promise<SourceRun[]> {
+  return requestJson(`/sources/${sourceId}/runs?limit=${limit}`);
 }
 
 // --- Tag API ---

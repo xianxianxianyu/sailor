@@ -71,6 +71,40 @@ export type RSSFeed = {
   last_error: string | null;
 };
 
+export type SourceRecord = {
+  source_id: string;
+  source_type: string;
+  name: string;
+  endpoint: string | null;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  schedule_minutes: number;
+  last_run_at: string | null;
+  error_count: number;
+  last_error: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type SourceStatus = {
+  total: number;
+  enabled: number;
+  errored: number;
+  last_run_at: string | null;
+};
+
+export type SourceRun = {
+  run_id: string;
+  source_id: string;
+  started_at: string;
+  finished_at: string | null;
+  status: string;
+  fetched_count: number;
+  processed_count: number;
+  error_message: string | null;
+  metadata: Record<string, unknown>;
+};
+
 // --- Tag 类型 ---
 
 export type UserTag = {

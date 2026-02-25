@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ResourceOut(BaseModel):
@@ -64,6 +65,76 @@ class FeedOut(BaseModel):
 
 class ImportOPMLIn(BaseModel):
     opml_file: str | None = None
+
+
+class SourceOut(BaseModel):
+    source_id: str
+    source_type: str
+    name: str
+    endpoint: str | None
+    config: dict[str, Any]
+    enabled: bool
+    schedule_minutes: int
+    last_run_at: datetime | None
+    error_count: int
+    last_error: str | None
+    created_at: datetime | None
+    updated_at: datetime | None
+
+
+class CreateSourceIn(BaseModel):
+    source_id: str | None = None
+    source_type: str
+    name: str
+    endpoint: str | None = None
+    config: dict[str, Any] = Field(default_factory=dict)
+    enabled: bool = True
+    schedule_minutes: int = 30
+
+
+class UpdateSourceIn(BaseModel):
+    name: str | None = None
+    endpoint: str | None = None
+    config: dict[str, Any] | None = None
+    enabled: bool | None = None
+    schedule_minutes: int | None = None
+
+
+class ImportSourcesIn(BaseModel):
+    config_file: str | None = None
+
+
+class ImportSourcesOut(BaseModel):
+    imported: int
+    rss_synced: int
+    total_parsed: int
+
+
+class SourceStatusOut(BaseModel):
+    total: int
+    enabled: int
+    errored: int
+    last_run_at: str | None
+
+
+class SourceRunOut(BaseModel):
+    run_id: str
+    source_id: str
+    started_at: datetime
+    finished_at: datetime | None
+    status: str
+    fetched_count: int
+    processed_count: int
+    error_message: str | None
+    metadata: dict[str, Any]
+
+
+class RunSourceOut(BaseModel):
+    run_id: str
+    source_id: str
+    status: str
+    fetched_count: int
+    processed_count: int
 
 
 # --- S2: 文章分析 ---

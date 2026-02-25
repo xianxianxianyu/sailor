@@ -17,6 +17,7 @@ from core.storage import (
     KBReportRepository,
     KnowledgeBaseRepository,
     ResourceRepository,
+    SourceRepository,
     TagRepository,
 )
 from core.tasks import MainUserFlowTaskPlanner
@@ -34,6 +35,7 @@ class AppContainer:
     analysis_repo: AnalysisRepository
     report_repo: KBReportRepository
     tag_repo: TagRepository
+    source_repo: SourceRepository
     ingestion_service: IngestionService
     task_planner: MainUserFlowTaskPlanner
     llm_client: LLMClient
@@ -54,6 +56,7 @@ def build_container(project_root: Path) -> AppContainer:
     analysis_repo = AnalysisRepository(db)
     report_repo = KBReportRepository(db)
     tag_repo = TagRepository(db)
+    source_repo = SourceRepository(db)
 
     collectors = [
         RSSCollector(seed_file=settings.seed_file, source_name="rss"),
@@ -101,6 +104,7 @@ def build_container(project_root: Path) -> AppContainer:
         analysis_repo=analysis_repo,
         report_repo=report_repo,
         tag_repo=tag_repo,
+        source_repo=source_repo,
         ingestion_service=ingestion_service,
         task_planner=task_planner,
         llm_client=llm_client,
