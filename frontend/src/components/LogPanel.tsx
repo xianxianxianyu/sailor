@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createLogStream, type LogEntry } from "../api";
+import { createLogStream, getRecentLogs, type LogEntry } from "../api";
 
 interface LogPanelProps {
   isOpen: boolean;
@@ -9,32 +9,66 @@ interface LogPanelProps {
 export default function LogPanel({ isOpen, onClose }: LogPanelProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [connected, setConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("");
   const logsEndRef = useRef<HTMLDivElement>(null);
+
+  const handleRefresh = async () => {
+    try {
+      setDebugInfo("Refreshing logs...");
+      const recent = await getRecentLogs(80);
+      setLogs(recent);
+      setDebugInfo(`Loaded ${recent.length} logs at ${new Date().toLocaleTimeString()}`);
+    } catch (e) {
+      setError(`Refresh failed: ${e}`);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) return;
 
-    const eventSource = createLogStream();
-    setConnected(true);
+    let disposed = false;
+    let eventSource: EventSource | null = null;
 
-    eventSource.onmessage = (event) => {
-      if (event.data.startsWith("data: :")) return; // heartbeat
-      
-      const data = event.data.replace("data: ", "");
-      const [time, level, message] = data.split(" | ");
-      
-      if (time && level && message) {
-        setLogs((prev) => [...prev.slice(-99), { time, level, message }]);
+    const bootstrap = async () => {
+      try {
+        const recent = await getRecentLogs(80);
+        if (!disposed) {
+          setLogs(recent);
+        }
+      } catch {
+        if (!disposed) {
+          setLogs([]);
+        }
       }
+
+      if (disposed) return;
+
+      eventSource = createLogStream();
+      setConnected(true);
+
+      eventSource.onmessage = (event) => {
+        console.log("[LogPanel] Received:", event.data);
+        const parsed = parseLogLine(event.data);
+        if (!parsed) {
+          console.log("[LogPanel] Parse failed for:", event.data);
+          return;
+        }
+        setLogs((prev) => [...prev.slice(-99), parsed]);
+      };
+
+      eventSource.onerror = () => {
+        console.log("[LogPanel] SSE error");
+        setConnected(false);
+        eventSource?.close();
+      };
     };
 
-    eventSource.onerror = () => {
-      setConnected(false);
-      eventSource.close();
-    };
+    bootstrap();
 
     return () => {
-      eventSource.close();
+      disposed = true;
+      eventSource?.close();
       setConnected(false);
     };
   }, [isOpen]);
@@ -49,8 +83,11 @@ export default function LogPanel({ isOpen, onClose }: LogPanelProps) {
     <div className="log-panel">
       <div className="log-panel-header">
         <span>📋 日志 {connected ? "🟢" : "🔴"}</span>
+        <button onClick={handleRefresh} title="刷新">↻</button>
         <button onClick={onClose}>✕</button>
       </div>
+      {error && <div className="log-error">⚠️ {error}</div>}
+      {debugInfo && <div className="log-debug">ℹ️ {debugInfo}</div>}
       <div className="log-panel-content">
         {logs.length === 0 ? (
           <div className="log-empty">暂无日志</div>
@@ -67,4 +104,25 @@ export default function LogPanel({ isOpen, onClose }: LogPanelProps) {
       </div>
     </div>
   );
+}
+
+function parseLogLine(line: string): LogEntry | null {
+  if (!line || line.startsWith(":")) {
+    return null;
+  }
+
+  const parts = line.split(" | ");
+  if (parts.length < 3) {
+    return null;
+  }
+
+  const time = parts[0]?.trim();
+  const level = parts[1]?.trim();
+  const message = parts.slice(2).join(" | ").trim();
+
+  if (!time || !level || !message) {
+    return null;
+  }
+
+  return { time, level, message };
 }
