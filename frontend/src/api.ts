@@ -191,6 +191,21 @@ export function runSource(sourceId: string): Promise<{ run_id: string; source_id
   return requestJson(`/sources/${sourceId}/run`, { method: "POST" });
 }
 
+export function runFeed(feedId: string): Promise<{ feed_id: string; status: string; fetched_count: number; processed_count: number }> {
+  return requestJson(`/feeds/${feedId}/run`, { method: "POST" });
+}
+
+export function runSourcesByType(sourceType: string, enabledOnly = true): Promise<{
+  source_type: string;
+  total_sources: number;
+  success_count: number;
+  failed_count: number;
+  total_fetched: number;
+  total_processed: number;
+}> {
+  return requestJson(`/sources/run-by-type/${sourceType}?enabled_only=${enabledOnly}`, { method: "POST" });
+}
+
 export function getSourceRuns(sourceId: string, limit = 20): Promise<SourceRun[]> {
   return requestJson(`/sources/${sourceId}/runs?limit=${limit}`);
 }

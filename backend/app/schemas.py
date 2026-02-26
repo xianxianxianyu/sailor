@@ -63,6 +63,22 @@ class FeedOut(BaseModel):
     created_at: datetime | None
 
 
+class RunFeedOut(BaseModel):
+    feed_id: str
+    status: str
+    fetched_count: int
+    processed_count: int
+
+
+class RunBatchOut(BaseModel):
+    source_type: str
+    total_sources: int
+    success_count: int
+    failed_count: int
+    total_fetched: int
+    total_processed: int
+
+
 class ImportOPMLIn(BaseModel):
     opml_file: str | None = None
 

@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 
+import feedparser
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from backend.app.container import AppContainer
-from backend.app.schemas import FeedOut, ImportOPMLIn
+from backend.app.schemas import FeedOut, ImportOPMLIn, RunFeedOut
 
 logger = logging.getLogger("sailor")
 
@@ -49,6 +51,78 @@ def mount_feed_routes(container: AppContainer) -> APIRouter:
         logger.info(f"{'启用' if enabled else '禁用'}订阅源: {feed_id}")
         container.feed_repo.toggle_enabled(feed_id, enabled)
         return {"feed_id": feed_id, "enabled": enabled}
+
+    @router.post("/{feed_id}/run", response_model=RunFeedOut)
+    def run_feed(feed_id: str) -> RunFeedOut:
+        feeds = container.feed_repo.list_feeds()
+        feed = next((f for f in feeds if f.feed_id == feed_id), None)
+        if not feed:
+            raise HTTPException(status_code=404, detail="Feed not found")
+
+        logger.info(f"[feeds] 开始运行 feed: {feed_id} ({feed.name})")
+
+        try:
+            # 解析 RSS
+            parsed = feedparser.parse(feed.xml_url)
+            if getattr(parsed, "bozo", False) and not parsed.entries:
+                raise ValueError(f"RSS parse failed: {getattr(parsed, 'bozo_exception', 'unknown')}")
+
+            entries = parsed.entries
+            logger.info(f"[feeds] 获取 {len(entries)} 条原始条目")
+
+            processed = 0
+            for entry in entries:
+                try:
+                    # 构建 RawEntry
+                    from core.models import RawEntry
+
+                    link = getattr(entry, "link", None) or ""
+                    title = getattr(entry, "title", "无标题")
+                    published = getattr(entry, "published", None) or getattr(entry, "updated", None)
+                    summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+
+                    raw_entry = RawEntry(
+                        entry_id=link or f"{feed.name}:{title}",
+                        source=feed.name,
+                        url=link,
+                        title=title,
+                        published=published,
+                        content=summary,
+                    )
+
+                    # 处理并入库
+                    resource = container.ingestion_service.pipeline.process(raw_entry)
+                    container.resource_repo.upsert(resource)
+                    processed += 1
+                except Exception:
+                    logger.exception(f"[feeds] 处理条目失败: {getattr(entry, 'link', 'unknown')}")
+                    continue
+
+            # 更新 feed 状态
+            container.feed_repo.update_feed_status(
+                feed_id=feed_id,
+                last_fetched_at=datetime.now(),
+                error_count=0,
+                last_error=None,
+            )
+
+            logger.info(f"[feeds] 完成 feed: {feed_id}, 获取 {len(entries)} 条, 处理 {processed} 条")
+            return RunFeedOut(
+                feed_id=feed_id,
+                status="success",
+                fetched_count=len(entries),
+                processed_count=processed,
+            )
+
+        except Exception as e:
+            logger.exception(f"[feeds] 运行 feed 失败: {feed_id}")
+            container.feed_repo.update_feed_status(
+                feed_id=feed_id,
+                last_fetched_at=datetime.now(),
+                error_count=(feed.error_count or 0) + 1,
+                last_error=str(e),
+            )
+            raise HTTPException(status_code=500, detail=f"Run failed: {str(e)}")
 
     @router.post("/import-opml")
     def import_opml(payload: ImportOPMLIn) -> dict:

@@ -17,6 +17,10 @@ export default function App() {
   const [message, setMessage] = useState("");
   const [showLogs, setShowLogs] = useState(false);
 
+  function handleRequestShowLogs() {
+    setShowLogs(true);
+  }
+
   async function handlePipeline() {
     setLoading(true);
     setMessage("");
@@ -68,7 +72,7 @@ export default function App() {
           {activeView === "trending" && <TrendingPage report={report} loading={loading} />}
           {activeView === "tags" && <TagPage onNavigateToTrending={() => setActiveView("trending")} />}
           {activeView === "kb" && <KBPage />}
-          {activeView === "feeds" && <FeedPage />}
+          {activeView === "feeds" && <FeedPage onRequestShowLogs={handleRequestShowLogs} />}
         </main>
       </div>
 
