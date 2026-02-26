@@ -24,6 +24,15 @@ logging.basicConfig(
     format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
     datefmt="%H:%M:%S",
 )
+
+# 强制安装日志处理器到 root logger（在 basicConfig 之后）
+from backend.app.routers.logs import LogHandler, add_log
+_root = logging.getLogger()
+if not any(isinstance(h, LogHandler) for h in _root.handlers):
+    _h = LogHandler()
+    _h.setFormatter(logging.Formatter("%(name)s: %(message)s"))
+    _root.addHandler(_h)
+
 logger = logging.getLogger("sailor")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

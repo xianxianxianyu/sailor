@@ -88,6 +88,20 @@ class SourceRunLog:
 
 
 @dataclass(slots=True)
+class SourceResourceRow:
+    resource_id: str
+    canonical_url: str
+    source: str
+    title: str
+    published_at: datetime | None
+    text: str
+    original_url: str
+    topics: list[str]
+    summary: str
+    last_seen_at: datetime | None
+
+
+@dataclass(slots=True)
 class ResourceAnalysis:
     resource_id: str
     summary: str

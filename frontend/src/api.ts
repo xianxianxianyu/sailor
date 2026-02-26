@@ -9,6 +9,7 @@ import type {
   ResourceAnalysis,
   RSSFeed,
   SourceRecord,
+  SourceResource,
   SourceRun,
   SourceStatus,
   TrendingReport,
@@ -192,6 +193,10 @@ export function runSource(sourceId: string): Promise<{ run_id: string; source_id
 
 export function getSourceRuns(sourceId: string, limit = 20): Promise<SourceRun[]> {
   return requestJson(`/sources/${sourceId}/runs?limit=${limit}`);
+}
+
+export function getSourceResources(sourceId: string, limit = 50, offset = 0): Promise<SourceResource[]> {
+  return requestJson(`/sources/${sourceId}/resources?limit=${limit}&offset=${offset}`);
 }
 
 // --- Tag API ---

@@ -10,7 +10,7 @@ from core.collector.base import Collector
 from core.models import RawEntry
 from core.storage.feed_repository import FeedRepository
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("sailor")
 
 
 @dataclass(slots=True)
@@ -20,9 +20,12 @@ class LiveRSSCollector(Collector):
 
     def collect(self) -> list[RawEntry]:
         feeds = self.feed_repo.list_feeds(enabled_only=True)
+        logger.info("[collector:live_rss] start enabled_feeds=%s", len(feeds))
         entries: list[RawEntry] = []
 
-        for feed in feeds:
+        for idx, feed in enumerate(feeds, start=1):
+            if idx == 1 or idx % 20 == 0 or idx == len(feeds):
+                logger.info("[collector:live_rss] progress feed=%s/%s", idx, len(feeds))
             try:
                 parsed = feedparser.parse(feed.xml_url)
                 if parsed.bozo and not parsed.entries:
@@ -47,6 +50,7 @@ class LiveRSSCollector(Collector):
                     last_error=str(exc)[:500],
                 )
 
+        logger.info("[collector:live_rss] done emitted=%s", len(entries))
         return entries
 
 

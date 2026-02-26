@@ -3,10 +3,13 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
+import logging
 from urllib import error, parse, request
 
 from core.collector.base import Collector
 from core.models import RawEntry
+
+logger = logging.getLogger("sailor")
 
 
 @dataclass(slots=True)
@@ -18,6 +21,7 @@ class MinifluxCollector(Collector):
 
     def collect(self) -> list[RawEntry]:
         if not self.base_url or not self.token:
+            logger.info("[collector:miniflux] skipped not configured")
             return []
 
         query = parse.urlencode({"status": "unread", "limit": self.limit})
@@ -27,7 +31,8 @@ class MinifluxCollector(Collector):
         try:
             with request.urlopen(req, timeout=15) as resp:
                 payload = json.loads(resp.read().decode("utf-8"))
-        except (error.URLError, TimeoutError, json.JSONDecodeError):
+        except (error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+            logger.error("[collector:miniflux] fetch failed err=%s", exc)
             return []
 
         entries: list[RawEntry] = []
@@ -45,6 +50,7 @@ class MinifluxCollector(Collector):
                 )
             )
 
+        logger.info("[collector:miniflux] done fetched=%s", len(entries))
         return entries
 
 

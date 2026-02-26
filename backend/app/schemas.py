@@ -137,6 +137,19 @@ class RunSourceOut(BaseModel):
     processed_count: int
 
 
+class SourceResourceOut(BaseModel):
+    resource_id: str
+    canonical_url: str
+    source: str
+    title: str
+    published_at: datetime | None
+    text: str
+    original_url: str
+    topics: list[str]
+    summary: str
+    last_seen_at: datetime | None
+
+
 # --- S2: 文章分析 ---
 
 class ResourceAnalysisOut(BaseModel):

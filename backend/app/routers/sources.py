@@ -13,6 +13,7 @@ import feedparser
 from fastapi import APIRouter, HTTPException
 
 from backend.app.container import AppContainer
+from backend.app.routers.logs import add_log
 from backend.app.schemas import (
     CreateSourceIn,
     ImportSourcesIn,
@@ -86,6 +87,7 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
         if not config_path.exists():
             raise HTTPException(status_code=404, detail=f"配置文件不存在: {config_path}")
 
+        add_log("INFO", f"[sources] 开始导入本地配置: {config_path}")
         try:
             data = json.loads(config_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
@@ -142,6 +144,7 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
                     )
 
         rss_synced = container.feed_repo.import_feeds(rss_rows) if rss_rows else 0
+        add_log("INFO", f"[sources] 导入完成: 导入 {imported} 个 source, 同步 {rss_synced} 个 RSS feed")
         return ImportSourcesOut(imported=imported, rss_synced=rss_synced, total_parsed=len(source_items))
 
     @router.post("/{source_id}/run", response_model=RunSourceOut)
@@ -150,9 +153,11 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
 
+        add_log("INFO", f"[sources] 开始运行 source: {source_id} ({source.name})")
         run = container.source_repo.create_run(source_id)
         try:
             entries = _collect_source_entries(source, container)
+            add_log("INFO", f"[sources] 获取 {len(entries)} 条原始条目")
             processed = 0
             for entry in entries:
                 resource = container.ingestion_service.pipeline.process(entry)
@@ -172,6 +177,7 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
                 processed_count=processed,
                 metadata={"source_type": source.source_type},
             )
+            add_log("INFO", f"[sources] 完成 source: {source_id}, 获取 {len(entries)} 条, 处理 {processed} 条")
             return RunSourceOut(
                 run_id=run.run_id,
                 source_id=source.source_id,
@@ -188,6 +194,7 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
                 error_message=str(exc)[:500],
                 metadata={"source_type": source.source_type},
             )
+            add_log("ERROR", f"[sources] source: {source_id} 失败: {exc}")
             raise HTTPException(status_code=500, detail=f"Source run failed: {exc}") from exc
 
     return router

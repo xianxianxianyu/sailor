@@ -4,7 +4,7 @@ import json
 import uuid
 from datetime import datetime
 
-from core.models import SourceRecord, SourceRunLog
+from core.models import SourceRecord, SourceResourceRow, SourceRunLog
 from core.storage.db import Database
 
 
@@ -254,6 +254,34 @@ class SourceRepository:
             "last_run_at": row["last_run_at"],
         }
 
+    def list_source_resources(self, source_id: str, limit: int = 50, offset: int = 0) -> list[SourceResourceRow]:
+        with self.db.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    r.resource_id,
+                    r.canonical_url,
+                    r.source,
+                    r.title,
+                    r.published_at,
+                    r.text,
+                    r.original_url,
+                    r.topics_json,
+                    r.summary,
+                    MAX(sii.last_seen_at) AS last_seen_at
+                FROM source_item_index AS sii
+                JOIN resources AS r
+                    ON r.resource_id = sii.resource_id
+                WHERE sii.source_id = ?
+                GROUP BY r.resource_id
+                ORDER BY MAX(sii.last_seen_at) DESC
+                LIMIT ? OFFSET ?
+                """,
+                (source_id, limit, offset),
+            ).fetchall()
+
+        return [_row_to_source_resource(row) for row in rows]
+
 
 def _row_to_source(row) -> SourceRecord:
     return SourceRecord(
@@ -283,4 +311,19 @@ def _row_to_run(row) -> SourceRunLog:
         processed_count=row["processed_count"] or 0,
         error_message=row["error_message"],
         metadata=json.loads(row["metadata_json"] or "{}"),
+    )
+
+
+def _row_to_source_resource(row) -> SourceResourceRow:
+    return SourceResourceRow(
+        resource_id=row["resource_id"],
+        canonical_url=row["canonical_url"],
+        source=row["source"],
+        title=row["title"],
+        published_at=datetime.fromisoformat(row["published_at"]) if row["published_at"] else None,
+        text=row["text"],
+        original_url=row["original_url"],
+        topics=json.loads(row["topics_json"] or "[]"),
+        summary=row["summary"] or "",
+        last_seen_at=datetime.fromisoformat(row["last_seen_at"]) if row["last_seen_at"] else None,
     )

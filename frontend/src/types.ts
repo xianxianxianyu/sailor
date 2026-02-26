@@ -105,6 +105,19 @@ export type SourceRun = {
   metadata: Record<string, unknown>;
 };
 
+export type SourceResource = {
+  resource_id: string;
+  canonical_url: string;
+  source: string;
+  title: string;
+  published_at: string | null;
+  text: string;
+  original_url: string;
+  topics: string[];
+  summary: string;
+  last_seen_at: string | null;
+};
+
 // --- Tag 类型 ---
 
 export type UserTag = {

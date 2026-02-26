@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import {
+  addToKnowledgeBase,
   addFeed,
   createSource,
   deleteFeed,
   deleteSource,
   getFeeds,
+  getKnowledgeBases,
+  getSourceResources,
   getSourceStatus,
   getSources,
   getUnifiedSourceStatus,
@@ -14,7 +17,7 @@ import {
   toggleFeed,
   updateSource,
 } from "../api";
-import type { RSSFeed, SourceRecord, SourceStatus } from "../types";
+import type { KnowledgeBase, RSSFeed, SourceRecord, SourceResource, SourceStatus } from "../types";
 
 type FeedOverviewStatus = {
   rss_total: number;
@@ -46,6 +49,15 @@ export default function FeedPage() {
   const [syncingConfig, setSyncingConfig] = useState(false);
   const [addingSource, setAddingSource] = useState(false);
   const [actingSourceId, setActingSourceId] = useState<string | null>(null);
+
+  const [selectedSource, setSelectedSource] = useState<SourceRecord | null>(null);
+  const [sourceResources, setSourceResources] = useState<SourceResource[]>([]);
+  const [loadingSourceResources, setLoadingSourceResources] = useState(false);
+
+  const [showKbModal, setShowKbModal] = useState(false);
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
+  const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
+  const [addingToKb, setAddingToKb] = useState(false);
 
   const [message, setMessage] = useState("");
 
@@ -182,6 +194,52 @@ export default function FeedPage() {
     }
   }
 
+  async function openSourceResources(source: SourceRecord) {
+    setSelectedSource(source);
+    setLoadingSourceResources(true);
+    try {
+      const items = await getSourceResources(source.source_id, 80, 0);
+      setSourceResources(items);
+    } catch {
+      setMessage("加载源抓取内容失败");
+      setSourceResources([]);
+    } finally {
+      setLoadingSourceResources(false);
+    }
+  }
+
+  function closeSourceResources() {
+    setSelectedSource(null);
+    setSourceResources([]);
+  }
+
+  async function openAddToKb(resourceId: string) {
+    setSelectedResourceId(resourceId);
+    setAddingToKb(false);
+    try {
+      const kbs = await getKnowledgeBases();
+      setKnowledgeBases(kbs);
+      setShowKbModal(true);
+    } catch {
+      setMessage("加载知识库失败");
+    }
+  }
+
+  async function handleAddResourceToKb(kbId: string) {
+    if (!selectedResourceId) return;
+    setAddingToKb(true);
+    try {
+      await addToKnowledgeBase(kbId, selectedResourceId);
+      setMessage("已加入知识库");
+      setShowKbModal(false);
+      setSelectedResourceId(null);
+    } catch {
+      setMessage("加入知识库失败");
+    } finally {
+      setAddingToKb(false);
+    }
+  }
+
   return (
     <div className="page-content">
       <h2>订阅源管理</h2>
@@ -314,7 +372,11 @@ export default function FeedPage() {
               {sources.map((source) => (
                 <tr key={source.source_id} className={!source.enabled ? "feed-disabled" : ""}>
                   <td>{source.source_type}</td>
-                  <td>{source.name}</td>
+                  <td>
+                    <button className="source-name-link" onClick={() => openSourceResources(source)}>
+                      {source.name}
+                    </button>
+                  </td>
                   <td className="feed-url">{source.endpoint ?? "-"}</td>
                   <td>{source.enabled ? "✅" : "⏸️"}</td>
                   <td>{source.error_count > 0 ? `${source.error_count}次` : "-"}</td>
@@ -398,6 +460,77 @@ export default function FeedPage() {
           </table>
         )}
       </div>
+
+      {selectedSource && (
+        <div className="modal-backdrop" onClick={closeSourceResources}>
+          <div className="source-resource-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="source-resource-header">
+              <h3>{selectedSource.name} · 抓取内容</h3>
+              <button className="icon-btn" onClick={closeSourceResources} title="关闭">
+                ✕
+              </button>
+            </div>
+
+            {loadingSourceResources ? (
+              <p>加载中...</p>
+            ) : sourceResources.length === 0 ? (
+              <p className="source-resource-empty">暂无抓取结果，先点击“立即运行”。</p>
+            ) : (
+              <div className="source-resource-list">
+                {sourceResources.map((item) => (
+                  <article key={item.resource_id} className="source-resource-card">
+                    <div className="source-resource-card-header">
+                      <a href={item.original_url} target="_blank" rel="noreferrer" className="source-resource-title">
+                        {item.title}
+                      </a>
+                      <button className="add-btn" onClick={() => openAddToKb(item.resource_id)}>
+                        + 加入知识库
+                      </button>
+                    </div>
+                    {item.summary && <p className="source-resource-summary">{item.summary}</p>}
+                    <div className="source-resource-meta">
+                      <span>最近抓取：{item.last_seen_at ?? "-"}</span>
+                      {item.topics.length > 0 && (
+                        <span className="source-resource-topics">标签：{item.topics.join(" / ")}</span>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showKbModal && (
+        <div className="modal-backdrop" onClick={() => setShowKbModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3>选择知识库</h3>
+            {knowledgeBases.length === 0 ? (
+              <p>暂无知识库，请先在知识库页面创建。</p>
+            ) : (
+              <div className="kb-card-list">
+                {knowledgeBases.map((kb) => (
+                  <button
+                    key={kb.kb_id}
+                    className="kb-card"
+                    onClick={() => handleAddResourceToKb(kb.kb_id)}
+                    disabled={addingToKb}
+                  >
+                    <div className="kb-card-info">
+                      <div className="kb-card-name">{kb.name}</div>
+                      <div className="kb-card-desc">{kb.description ?? "无描述"}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button onClick={() => setShowKbModal(false)}>关闭</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
