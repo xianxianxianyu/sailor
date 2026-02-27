@@ -214,6 +214,10 @@ export function getSourceResources(sourceId: string, limit = 50, offset = 0): Pr
   return requestJson(`/sources/${sourceId}/resources?limit=${limit}&offset=${offset}`);
 }
 
+export function getFeedResources(feedId: string, limit = 50, offset = 0): Promise<SourceResource[]> {
+  return requestJson(`/feeds/${feedId}/resources?limit=${limit}&offset=${offset}`);
+}
+
 // --- Tag API ---
 
 export function getTags(): Promise<UserTag[]> {

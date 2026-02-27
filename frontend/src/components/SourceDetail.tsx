@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import type { SourceRecord, SourceResource, RSSFeed } from "../types";
-import { getSourceResources, getKnowledgeBases, addToKnowledgeBase } from "../api";
+import { getSourceResources, getFeedResources, getKnowledgeBases, addToKnowledgeBase } from "../api";
 import type { KnowledgeBase } from "../types";
 
 type AnySource = (SourceRecord & { sourceKind: "unified" }) | (RSSFeed & { sourceKind: "rss" });
@@ -11,9 +11,10 @@ interface SourceDetailProps {
   onToggle: (source: AnySource) => void;
   onDelete: (sourceId: string) => void;
   actingSourceId: string | null;
+  refreshKey?: number; // 用于触发资源刷新
 }
 
-export default function SourceDetail({ source, onRun, onToggle, onDelete, actingSourceId }: SourceDetailProps) {
+export default function SourceDetail({ source, onRun, onToggle, onDelete, actingSourceId, refreshKey = 0 }: SourceDetailProps) {
   const [resources, setResources] = useState<SourceResource[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
   const [showKbModal, setShowKbModal] = useState(false);
@@ -28,18 +29,26 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
     }
 
     const isRss = source.sourceKind === "rss";
+
     if (isRss) {
-      setResources([]);
+      // RSS 源 - 使用 feed_id
+      const feedId = (source as RSSFeed).feed_id;
+      setLoadingResources(true);
+      getFeedResources(feedId, 80, 0)
+        .then(setResources)
+        .catch(() => setResources([]))
+        .finally(() => setLoadingResources(false));
       return;
     }
 
+    // 统一源 - 使用 source_id
     const sourceId = (source as SourceRecord).source_id;
     setLoadingResources(true);
     getSourceResources(sourceId, 80, 0)
       .then(setResources)
       .catch(() => setResources([]))
       .finally(() => setLoadingResources(false));
-  }, [source]);
+  }, [source, refreshKey]);
 
   async function openAddToKb(resourceId: string) {
     setSelectedResourceId(resourceId);
@@ -185,9 +194,7 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
       <div className="source-detail-resources">
         <h4>最近抓取内容 {!isRss && `(${resources.length}条)`}</h4>
 
-        {isRss ? (
-          <p className="source-detail-hint">RSS 源不支持查看抓取内容</p>
-        ) : loadingResources ? (
+        {loadingResources ? (
           <p className="source-detail-loading">加载中...</p>
         ) : resources.length === 0 ? (
           <p className="source-detail-hint">暂无抓取结果，点击运行按钮开始抓取</p>

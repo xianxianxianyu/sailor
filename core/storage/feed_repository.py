@@ -94,6 +94,38 @@ class FeedRepository:
                 (1 if enabled else 0, feed_id),
             )
 
+    def list_feed_resources(self, feed_id: str, limit: int = 50, offset: int = 0) -> list[dict]:
+        """获取 RSS 源的资源列表"""
+        with self.db.connect() as conn:
+            # 先获取 feed 的 name
+            feed_row = conn.execute("SELECT name FROM rss_feeds WHERE feed_id = ?", (feed_id,)).fetchone()
+            if not feed_row:
+                return []
+            feed_name = feed_row["name"]
+
+            rows = conn.execute(
+                """
+                SELECT
+                    resource_id,
+                    canonical_url,
+                    source,
+                    title,
+                    published_at,
+                    text,
+                    original_url,
+                    topics_json,
+                    summary,
+                    created_at AS last_seen_at
+                FROM resources
+                WHERE source = ?
+                ORDER BY created_at DESC
+                LIMIT ? OFFSET ?
+                """,
+                (feed_name, limit, offset),
+            ).fetchall()
+
+        return [dict(row) for row in rows]
+
 
 def _make_feed_id(xml_url: str) -> str:
     return "feed_" + hashlib.sha256(xml_url.encode()).hexdigest()[:12]

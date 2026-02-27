@@ -52,6 +52,9 @@ export default function FeedPage({ onRequestShowLogs }: FeedPageProps) {
   const [newSourceName, setNewSourceName] = useState("");
   const [newSourceEndpoint, setNewSourceEndpoint] = useState("");
 
+  // 额外配置字段
+  const [newSourceConfig, setNewSourceConfig] = useState<Record<string, string>>({});
+
   const [addingFeed, setAddingFeed] = useState(false);
   const [importingOPML, setImportingOPML] = useState(false);
   const [syncingConfig, setSyncingConfig] = useState(false);
@@ -59,6 +62,7 @@ export default function FeedPage({ onRequestShowLogs }: FeedPageProps) {
   const [actingSourceId, setActingSourceId] = useState<string | null>(null);
 
   const [selectedSource, setSelectedSource] = useState<AnySource | null>(null);
+  const [sourceRefreshKey, setSourceRefreshKey] = useState(0); // 用于刷新资源列表
   const [sourceResources, setSourceResources] = useState<SourceResource[]>([]);
   const [loadingSourceResources, setLoadingSourceResources] = useState(false);
 
@@ -176,16 +180,28 @@ export default function FeedPage({ onRequestShowLogs }: FeedPageProps) {
     if (!newSourceName.trim() || !newSourceEndpoint.trim()) return;
     setAddingSource(true);
     try {
+      // 解析 config 中的 JSON 字段
+      const config: Record<string, unknown> = { ...newSourceConfig };
+      // 将字符串转为对象（如 headers）
+      if (config.headers && typeof config.headers === "string") {
+        try {
+          config.headers = JSON.parse(config.headers as string);
+        } catch {
+          // 如果不是 JSON，就当作普通字符串
+        }
+      }
+
       await createSource({
         source_type: newSourceType,
         name: newSourceName.trim(),
         endpoint: newSourceEndpoint.trim(),
-        config: {},
+        config,
         enabled: true,
         schedule_minutes: 30,
       });
       setNewSourceName("");
       setNewSourceEndpoint("");
+      setNewSourceConfig({});
       setShowAddSource(false);
       await load();
       setMessage("统一源添加成功");
@@ -238,6 +254,8 @@ export default function FeedPage({ onRequestShowLogs }: FeedPageProps) {
         const result = await runFeed(sourceId);
         setMessage(`执行完成：抓取 ${result.fetched_count} 条，入库 ${result.processed_count} 条`);
         await load();
+        // 刷新资源列表
+        setSourceRefreshKey(prev => prev + 1);
       } catch {
         setMessage("执行 RSS 源失败，请查看后端日志");
       } finally {
@@ -251,6 +269,8 @@ export default function FeedPage({ onRequestShowLogs }: FeedPageProps) {
       const result = await runSource(sourceId);
       setMessage(`执行完成：抓取 ${result.fetched_count} 条，入库 ${result.processed_count} 条`);
       await load();
+      // 刷新资源列表
+      setSourceRefreshKey(prev => prev + 1);
     } catch {
       setMessage("执行源失败，请查看后端日志");
     } finally {
@@ -267,9 +287,15 @@ export default function FeedPage({ onRequestShowLogs }: FeedPageProps) {
       <div className="feed-page-header">
         <h2>订阅源管理</h2>
         <div className="feed-page-actions">
-          <button onClick={() => setShowAddSource(!showAddSource)} className="add-btn">
-            {showAddSource ? "取消" : "+ 添加源"}
-          </button>
+          <div className="add-source-dropdown">
+            <button
+              onClick={() => setShowAddSource(!showAddSource)}
+              className={`add-source-btn ${showAddSource ? "active" : ""}`}
+              title="添加源"
+            >
+              +
+            </button>
+          </div>
         </div>
       </div>
 
@@ -281,21 +307,6 @@ export default function FeedPage({ onRequestShowLogs }: FeedPageProps) {
           </button>
         </p>
       )}
-
-      <div className="feed-page-toolbar">
-        <button onClick={handleRunAllIngestion} disabled={actingSourceId === "all"} className="add-btn">
-          {actingSourceId === "all" ? "抓取中..." : "▶ 一键抓取"}
-        </button>
-        <button onClick={handleSyncLocalConfig} disabled={syncingConfig} className="toolbar-btn">
-          {syncingConfig ? "同步中..." : "🔄 同步配置"}
-        </button>
-        <button onClick={handleImportOPML} disabled={importingOPML} className="toolbar-btn">
-          {importingOPML ? "导入中..." : "📄 导入 OPML"}
-        </button>
-        <button onClick={() => setShowAddFeed(!showAddFeed)} className="toolbar-btn">
-          {showAddFeed ? "取消" : "+ 添加 RSS"}
-        </button>
-      </div>
 
       {(showAddFeed || showAddSource) && (
         <div className="feed-page-add-form">
@@ -318,34 +329,145 @@ export default function FeedPage({ onRequestShowLogs }: FeedPageProps) {
           )}
 
           {showAddSource && (
-            <div className="create-form">
-              <select value={newSourceType} onChange={(e) => setNewSourceType(e.target.value)}>
-                <option value="rss">RSS 订阅</option>
-                <option value="atom">Atom 订阅</option>
-                <option value="jsonfeed">JSON Feed</option>
-                <option value="academic_api">学术 API (arXiv/Scholar)</option>
-                <option value="api">REST API</option>
-                <option value="api_json">API JSON</option>
-                <option value="api_xml">API XML</option>
-                <option value="web_page">网页抓取</option>
-                <option value="site_map">站点地图</option>
-                <option value="opml">OPML 导入</option>
-                <option value="jsonl">JSONL 批量导入</option>
-                <option value="manual_file">本地文件</option>
-              </select>
-              <input
-                value={newSourceName}
-                onChange={(e) => setNewSourceName(e.target.value)}
-                placeholder="统一源名称"
-              />
-              <input
-                value={newSourceEndpoint}
-                onChange={(e) => setNewSourceEndpoint(e.target.value)}
-                placeholder="endpoint，例如 URL 或本地文件路径"
-              />
-              <button onClick={handleAddSource} disabled={addingSource} className="add-btn">
-                {addingSource ? "添加中..." : "添加统一源"}
-              </button>
+            <div className="add-source-form">
+              <div className="source-type-selector">
+                <label>源类型：</label>
+                <select value={newSourceType} onChange={(e) => setNewSourceType(e.target.value)}>
+                  <option value="rss">RSS 订阅</option>
+                  <option value="atom">Atom 订阅</option>
+                  <option value="jsonfeed">JSON Feed</option>
+                  <option value="academic_api">学术 API (arXiv/Scholar)</option>
+                  <option value="api">REST API</option>
+                  <option value="api_json">API JSON</option>
+                  <option value="api_xml">API XML</option>
+                  <option value="web_page">网页抓取</option>
+                  <option value="site_map">站点地图</option>
+                  <option value="opml">OPML 导入</option>
+                  <option value="jsonl">JSONL 批量导入</option>
+                  <option value="manual_file">本地文件</option>
+                </select>
+              </div>
+
+              <div className="source-basic-fields">
+                <input
+                  value={newSourceName}
+                  onChange={(e) => setNewSourceName(e.target.value)}
+                  placeholder="源名称 *"
+                  className="source-name-input"
+                />
+                <input
+                  value={newSourceEndpoint}
+                  onChange={(e) => setNewSourceEndpoint(e.target.value)}
+                  placeholder={newSourceType === "opml" || newSourceType === "jsonl" || newSourceType === "manual_file" ? "文件路径" : "URL *"}
+                  className="source-endpoint-input"
+                />
+              </div>
+
+              {/* 动态配置字段 */}
+              <div className="source-config-fields">
+                {(newSourceType === "api" || newSourceType === "api_json" || newSourceType === "api_xml") && (
+                  <>
+                    <input
+                      value={newSourceConfig.method || ""}
+                      onChange={(e) => setNewSourceConfig({ ...newSourceConfig, method: e.target.value })}
+                      placeholder="HTTP 方法 (GET/POST)"
+                      className="config-input"
+                    />
+                    <input
+                      value={newSourceConfig.headers || ""}
+                      onChange={(e) => setNewSourceConfig({ ...newSourceConfig, headers: e.target.value })}
+                      placeholder='Headers JSON, 如 {"Authorization": "Bearer xxx"}'
+                      className="config-input"
+                    />
+                    {newSourceType === "api_json" && (
+                      <>
+                        <input
+                          value={newSourceConfig.items_path || ""}
+                          onChange={(e) => setNewSourceConfig({ ...newSourceConfig, items_path: e.target.value })}
+                          placeholder="JSONPath 路径，如 data.items"
+                          className="config-input"
+                        />
+                        <input
+                          value={newSourceConfig.url_field || ""}
+                          onChange={(e) => setNewSourceConfig({ ...newSourceConfig, url_field: e.target.value })}
+                          placeholder="URL 字段名，如 url"
+                          className="config-input"
+                        />
+                        <input
+                          value={newSourceConfig.title_field || ""}
+                          onChange={(e) => setNewSourceConfig({ ...newSourceConfig, title_field: e.target.value })}
+                          placeholder="标题字段名，如 title"
+                          className="config-input"
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+
+                {newSourceType === "academic_api" && (
+                  <>
+                    <input
+                      value={newSourceConfig.api_key || ""}
+                      onChange={(e) => setNewSourceConfig({ ...newSourceConfig, api_key: e.target.value })}
+                      placeholder="API Key (可选)"
+                      className="config-input"
+                    />
+                    <input
+                      value={newSourceConfig.search_query || ""}
+                      onChange={(e) => setNewSourceConfig({ ...newSourceConfig, search_query: e.target.value })}
+                      placeholder="搜索关键词，如 machine learning"
+                      className="config-input"
+                    />
+                    <input
+                      value={newSourceConfig.max_results || ""}
+                      onChange={(e) => setNewSourceConfig({ ...newSourceConfig, max_results: e.target.value })}
+                      placeholder="最大结果数，默认 20"
+                      className="config-input"
+                    />
+                  </>
+                )}
+
+                {newSourceType === "web_page" && (
+                  <input
+                    value={newSourceConfig.selector || ""}
+                    onChange={(e) => setNewSourceConfig({ ...newSourceConfig, selector: e.target.value })}
+                    placeholder="CSS 选择器，如 .article-title"
+                    className="config-input"
+                  />
+                )}
+
+                {newSourceType === "api_xml" && (
+                  <>
+                    <input
+                      value={newSourceConfig.items_path || ""}
+                      onChange={(e) => setNewSourceConfig({ ...newSourceConfig, items_path: e.target.value })}
+                      placeholder="XML 路径，如 channel/item"
+                      className="config-input"
+                    />
+                    <input
+                      value={newSourceConfig.url_field || ""}
+                      onChange={(e) => setNewSourceConfig({ ...newSourceConfig, url_field: e.target.value })}
+                      placeholder="URL 字段名"
+                      className="config-input"
+                    />
+                    <input
+                      value={newSourceConfig.title_field || ""}
+                      onChange={(e) => setNewSourceConfig({ ...newSourceConfig, title_field: e.target.value })}
+                      placeholder="标题字段名"
+                      className="config-input"
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className="source-form-actions">
+                <button onClick={handleAddSource} disabled={addingSource} className="add-btn">
+                  {addingSource ? "添加中..." : "添加源"}
+                </button>
+                <button onClick={() => setShowAddSource(false)} className="cancel-btn">
+                  取消
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -382,6 +504,7 @@ export default function FeedPage({ onRequestShowLogs }: FeedPageProps) {
             onToggle={handleToggleSource}
             onDelete={handleDeleteSource}
             actingSourceId={actingSourceId}
+            refreshKey={sourceRefreshKey}
           />
         </div>
       </div>

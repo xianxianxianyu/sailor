@@ -51,13 +51,9 @@ export default function App() {
       <header className="hero">
         <div>
           <h1>Sailor</h1>
-          <p>一键抓取 → 智能打标 → Trending 报告 → 知识库收藏</p>
+          <p>智能信息采集与管理</p>
         </div>
         <div className="hero-actions">
-          <button onClick={handlePipeline} disabled={loading} className="pipeline-btn">
-            {loading ? "执行中..." : "🚀 一键抓取"}
-          </button>
-          <button onClick={handleRefresh} disabled={loading}>刷新</button>
           <button onClick={() => setShowLogs(!showLogs)} className={showLogs ? "active" : ""}>
             📋 日志
           </button>

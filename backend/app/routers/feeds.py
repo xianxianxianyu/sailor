@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from backend.app.container import AppContainer
-from backend.app.schemas import FeedOut, ImportOPMLIn, RunFeedOut
+from backend.app.schemas import FeedOut, ImportOPMLIn, RunFeedOut, SourceResourceOut
 
 logger = logging.getLogger("sailor")
 
@@ -161,5 +161,28 @@ def mount_feed_routes(container: AppContainer) -> APIRouter:
             "miniflux_configured": miniflux_ok,
             "seed_file_exists": seed_exists,
         }
+
+    @router.get("/{feed_id}/resources", response_model=list[SourceResourceOut])
+    def get_feed_resources(feed_id: str, limit: int = 50, offset: int = 0) -> list[SourceResourceOut]:
+        """获取 RSS 源的最近抓取内容"""
+        import json
+
+        items = container.feed_repo.list_feed_resources(feed_id, limit, offset)
+        result = []
+        for item in items:
+            topics = json.loads(item.get("topics_json", "[]")) if item.get("topics_json") else []
+            result.append(SourceResourceOut(
+                resource_id=item["resource_id"],
+                canonical_url=item["canonical_url"],
+                source=item["source"],
+                title=item["title"],
+                published_at=item.get("published_at"),
+                text=item.get("text", ""),
+                original_url=item.get("original_url", ""),
+                topics=topics,
+                summary=item.get("summary", ""),
+                last_seen_at=item.get("last_seen_at"),
+            ))
+        return result
 
     return router

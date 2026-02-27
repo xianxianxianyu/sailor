@@ -21,6 +21,7 @@ from backend.app.schemas import (
     RunBatchOut,
     RunSourceOut,
     SourceOut,
+    SourceResourceOut,
     SourceRunOut,
     SourceStatusOut,
     UpdateSourceIn,
@@ -240,6 +241,27 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
             total_fetched=total_fetched,
             total_processed=total_processed,
         )
+
+    @router.get("/{source_id}/resources", response_model=list[SourceResourceOut])
+    def get_source_resources(source_id: str, limit: int = 50, offset: int = 0) -> list[SourceResourceOut]:
+        """获取统一源的最近抓取内容"""
+        items = container.source_repo.list_source_resources(source_id, limit, offset)
+        result = []
+        for item in items:
+            topics = json.loads(item.topics_json) if item.topics_json else []
+            result.append(SourceResourceOut(
+                resource_id=item.resource_id,
+                canonical_url=item.canonical_url,
+                source=item.source,
+                title=item.title,
+                published_at=item.published_at,
+                text=item.text,
+                original_url=item.original_url,
+                topics=topics,
+                summary=item.summary,
+                last_seen_at=item.last_seen_at,
+            ))
+        return result
 
     return router
 

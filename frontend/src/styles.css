@@ -1275,3 +1275,155 @@ body {
     max-height: 300px;
   }
 }
+
+/* ===== Add Source Form ===== */
+
+.add-source-form {
+  background: var(--bg-1);
+  border: 1px solid var(--bg-2);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.source-type-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+
+.source-type-selector label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.source-type-selector select {
+  flex: 1;
+  max-width: 300px;
+  padding: 0.5rem;
+  border: 1px solid var(--bg-2);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: white;
+}
+
+.source-basic-fields {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.source-name-input,
+.source-endpoint-input {
+  flex: 1;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--bg-2);
+  border-radius: 8px;
+  font-size: 0.88rem;
+}
+
+.source-name-input:focus,
+.source-endpoint-input:focus,
+.config-input:focus {
+  outline: none;
+  border-color: var(--accent-0);
+}
+
+.source-config-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+  padding: 0.8rem;
+  background: var(--bg-2);
+  border-radius: 8px;
+}
+
+.source-config-fields .config-input {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--bg-1);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.source-form-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cancel-btn {
+  border: 1px solid var(--bg-2);
+  background: white;
+  border-radius: 8px;
+  padding: 0.4rem 0.75rem;
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.cancel-btn:hover {
+  background: var(--bg-2);
+}
+
+/* ===== Add Source Dropdown ===== */
+
+.add-source-dropdown {
+  position: relative;
+}
+
+.add-source-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f97316;
+  color: white;
+  border: none;
+  font-size: 1.5rem;
+  font-weight: 400;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.15s;
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+}
+
+.add-source-btn:hover {
+  background: #ea580c;
+  transform: scale(1.05);
+}
+
+.add-source-btn.active {
+  background: #ea580c;
+  transform: rotate(45deg);
+}
+
+.add-source-menu {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: white;
+  border: 1px solid var(--bg-2);
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  min-width: 180px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.add-source-menu button {
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s;
+}
+
+.add-source-menu button:hover {
+  background: var(--bg-2);
+}
