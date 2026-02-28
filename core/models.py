@@ -160,3 +160,50 @@ class ResourceTag:
     tag_id: str
     source: str = "auto"
     created_at: datetime | None = None
+
+
+# --- 资源嗅探 ---
+
+
+@dataclass(slots=True)
+class SniffResult:
+    result_id: str
+    channel: str
+    title: str
+    url: str
+    snippet: str
+    author: str | None = None
+    published_at: datetime | None = None
+    media_type: str = "article"
+    metrics: dict[str, Any] = field(default_factory=dict)
+    raw_data: dict[str, Any] = field(default_factory=dict)
+    query_keyword: str = ""
+    created_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class SniffQuery:
+    keyword: str
+    channels: list[str] = field(default_factory=list)
+    time_range: str = "all"
+    sort_by: str = "relevance"
+    max_results_per_channel: int = 10
+
+
+@dataclass(slots=True)
+class SnifferPack:
+    pack_id: str
+    name: str
+    query_json: str = "{}"
+    description: str | None = None
+    schedule_cron: str | None = None
+    last_run_at: datetime | None = None
+    next_run_at: datetime | None = None
+    created_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class CompareSummary:
+    dimensions: list[dict[str, Any]]
+    verdict: str
+    model: str

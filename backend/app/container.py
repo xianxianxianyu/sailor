@@ -19,10 +19,15 @@ from core.storage import (
     KBReportRepository,
     KnowledgeBaseRepository,
     ResourceRepository,
+    SnifferRepository,
     SourceRepository,
     TagRepository,
 )
 from core.tasks import MainUserFlowTaskPlanner
+
+from core.sniffer import ChannelRegistry, PackManager, SummaryEngine
+from core.sniffer.adapters import GitHubAdapter, HackerNewsAdapter, RSSAdapter
+from core.sniffer.scheduler import SnifferScheduler
 
 from .config import Settings, load_settings
 
@@ -46,6 +51,11 @@ class AppContainer:
     article_agent: ArticleAnalysisAgent
     kb_agent: KBClusterAgent
     tagging_agent: TaggingAgent
+    sniffer_repo: SnifferRepository
+    channel_registry: ChannelRegistry
+    summary_engine: SummaryEngine
+    pack_manager: PackManager
+    scheduler: SnifferScheduler | None
 
     def reload_llm(
         self,
@@ -160,6 +170,18 @@ def build_container(project_root: Path) -> AppContainer:
     )
     tagging_agent = TaggingAgent(llm=llm_client, tag_repo=tag_repo)
 
+    # Sniffer
+    sniffer_repo = SnifferRepository(db)
+    channel_registry = ChannelRegistry()
+    channel_registry.register(HackerNewsAdapter())
+    channel_registry.register(GitHubAdapter())
+    channel_registry.register(RSSAdapter(db))
+    summary_engine = SummaryEngine(sniffer_repo=sniffer_repo)
+    pack_manager = PackManager(repo=sniffer_repo, registry=channel_registry)
+    pack_manager.ensure_presets()
+    scheduler = SnifferScheduler(pack_manager=pack_manager, sniffer_repo=sniffer_repo)
+    scheduler.start()
+
     return AppContainer(
         settings=settings,
         db=db,
@@ -176,5 +198,10 @@ def build_container(project_root: Path) -> AppContainer:
         article_agent=article_agent,
         kb_agent=kb_agent,
         tagging_agent=tagging_agent,
+        sniffer_repo=sniffer_repo,
+        channel_registry=channel_registry,
+        summary_engine=summary_engine,
+        pack_manager=pack_manager,
+        scheduler=scheduler,
     )
 

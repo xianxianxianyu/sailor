@@ -1,4 +1,4 @@
-export type ViewId = "trending" | "tags" | "kb" | "feeds";
+export type ViewId = "trending" | "tags" | "kb" | "feeds" | "sniffer";
 
 type NavItem = { id: ViewId; icon: string; label: string };
 
@@ -7,6 +7,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "tags", icon: "🏷️", label: "标签" },
   { id: "kb", icon: "📚", label: "知识库" },
   { id: "feeds", icon: "📡", label: "订阅源" },
+  { id: "sniffer", icon: "🔍", label: "嗅探" },
 ];
 
 type Props = {

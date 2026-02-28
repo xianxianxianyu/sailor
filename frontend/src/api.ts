@@ -1,5 +1,8 @@
 import type {
   AnalysisStatus,
+  ChannelHealth,
+  ChannelInfo,
+  CompareSummary,
   KBItemResource,
   KBReport,
   KnowledgeBase,
@@ -9,6 +12,8 @@ import type {
   Resource,
   ResourceAnalysis,
   RSSFeed,
+  SearchResponse,
+  SnifferPack,
   SourceRecord,
   SourceResource,
   SourceRun,
@@ -329,4 +334,106 @@ export function testLLMConnection(): Promise<{ success: boolean; message: string
 
 export function analyzeResource(resourceId: string): Promise<ResourceAnalysis> {
   return requestJson(`/resources/${resourceId}/analyze`, { method: "POST" });
+}
+
+// --- 资源嗅探 API ---
+
+export function snifferSearch(payload: {
+  keyword: string;
+  channels?: string[];
+  time_range?: string;
+  sort_by?: string;
+  max_results_per_channel?: number;
+}): Promise<SearchResponse> {
+  return requestJson("/sniffer/search", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getSnifferChannels(): Promise<ChannelInfo[]> {
+  return requestJson("/sniffer/channels");
+}
+
+export function getSnifferPacks(): Promise<SnifferPack[]> {
+  return requestJson("/sniffer/packs");
+}
+
+export function createSnifferPack(payload: {
+  name: string;
+  query: {
+    keyword: string;
+    channels?: string[];
+    time_range?: string;
+    sort_by?: string;
+    max_results_per_channel?: number;
+  };
+  description?: string;
+}): Promise<SnifferPack> {
+  return requestJson("/sniffer/packs", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteSnifferPack(packId: string): Promise<void> {
+  return requestJson(`/sniffer/packs/${packId}`, { method: "DELETE" }).then(() => undefined);
+}
+
+export function runSnifferPack(packId: string): Promise<SearchResponse> {
+  return requestJson(`/sniffer/packs/${packId}/run`, { method: "POST" });
+}
+
+// --- P1: 深度分析 / 对比 / 操作 ---
+
+export function deepAnalyze(resultId: string): Promise<ResourceAnalysis> {
+  return requestJson(`/sniffer/results/${resultId}/deep-analyze`, { method: "POST" });
+}
+
+export function compareResults(resultIds: string[]): Promise<CompareSummary> {
+  return requestJson("/sniffer/compare", {
+    method: "POST",
+    body: JSON.stringify({ result_ids: resultIds }),
+  });
+}
+
+export function saveToKB(resultId: string, kbId: string): Promise<{ saved: boolean; resource_id: string }> {
+  return requestJson(`/sniffer/results/${resultId}/save-to-kb`, {
+    method: "POST",
+    body: JSON.stringify({ kb_id: kbId }),
+  });
+}
+
+export function convertToSource(resultId: string, name?: string): Promise<{ converted: boolean; source_id: string }> {
+  return requestJson(`/sniffer/results/${resultId}/convert-source`, {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function importSnifferPack(payload: {
+  name: string;
+  query: { keyword: string; channels?: string[]; time_range?: string; sort_by?: string; max_results_per_channel?: number };
+  description?: string;
+  schedule_cron?: string;
+}): Promise<SnifferPack> {
+  return requestJson("/sniffer/packs/import", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function exportSnifferPack(packId: string): Promise<Record<string, unknown>> {
+  return requestJson(`/sniffer/packs/${packId}/export`);
+}
+
+export function updatePackSchedule(packId: string, scheduleCron: string | null): Promise<SnifferPack> {
+  return requestJson(`/sniffer/packs/${packId}/schedule`, {
+    method: "PATCH",
+    body: JSON.stringify({ schedule_cron: scheduleCron }),
+  });
+}
+
+export function getChannelHealth(): Promise<ChannelHealth[]> {
+  return requestJson("/sniffer/channels/health");
 }

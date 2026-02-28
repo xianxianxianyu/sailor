@@ -170,5 +170,40 @@ class Database:
                     FOREIGN KEY(resource_id) REFERENCES resources(resource_id),
                     FOREIGN KEY(tag_id) REFERENCES user_tags(tag_id)
                 );
+
+                CREATE TABLE IF NOT EXISTS sniff_results (
+                    result_id       TEXT PRIMARY KEY,
+                    channel         TEXT NOT NULL,
+                    title           TEXT NOT NULL,
+                    url             TEXT NOT NULL,
+                    snippet         TEXT NOT NULL DEFAULT '',
+                    author          TEXT,
+                    published_at    TEXT,
+                    media_type      TEXT NOT NULL DEFAULT 'article',
+                    metrics_json    TEXT NOT NULL DEFAULT '{}',
+                    raw_data_json   TEXT NOT NULL DEFAULT '{}',
+                    query_keyword   TEXT NOT NULL DEFAULT '',
+                    created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_sniff_results_keyword
+                ON sniff_results(query_keyword);
+
+                CREATE TABLE IF NOT EXISTS sniffer_packs (
+                    pack_id         TEXT PRIMARY KEY,
+                    name            TEXT NOT NULL,
+                    query_json      TEXT NOT NULL DEFAULT '{}',
+                    description     TEXT,
+                    schedule_cron   TEXT,
+                    last_run_at     TEXT,
+                    next_run_at     TEXT,
+                    created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+
+                CREATE TABLE IF NOT EXISTS summary_cache (
+                    cache_key       TEXT PRIMARY KEY,
+                    summary_json    TEXT NOT NULL,
+                    created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+                );
                 """
             )

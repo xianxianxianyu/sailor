@@ -265,3 +265,119 @@ class UpdateLLMSettingsIn(BaseModel):
 class TestLLMOut(BaseModel):
     success: bool
     message: str
+
+
+# --- 资源嗅探 ---
+
+class SniffQueryIn(BaseModel):
+    keyword: str
+    channels: list[str] = Field(default_factory=list)
+    time_range: str = "all"
+    sort_by: str = "relevance"
+    max_results_per_channel: int = 10
+
+
+class SniffResultOut(BaseModel):
+    result_id: str
+    channel: str
+    title: str
+    url: str
+    snippet: str
+    author: str | None
+    published_at: datetime | None
+    media_type: str
+    metrics: dict[str, Any]
+    query_keyword: str
+
+
+class SearchSummaryOut(BaseModel):
+    total: int
+    keyword: str
+    channel_distribution: dict[str, int]
+    keyword_clusters: list[dict[str, Any]]
+    time_distribution: dict[str, int]
+    top_by_engagement: list[dict[str, Any]]
+
+
+class SearchResponseOut(BaseModel):
+    results: list[SniffResultOut]
+    summary: SearchSummaryOut
+
+
+class ChannelInfoOut(BaseModel):
+    channel_id: str
+    display_name: str
+    icon: str
+    tier: str
+    media_types: list[str]
+    status: str
+    message: str
+
+
+class SnifferPackOut(BaseModel):
+    pack_id: str
+    name: str
+    query_json: str
+    description: str | None
+    created_at: datetime | None
+
+
+class CreateSnifferPackIn(BaseModel):
+    name: str
+    query: SniffQueryIn
+    description: str | None = None
+
+
+# --- P1: 深度分析 / 对比 / 操作 ---
+
+class SaveToKBIn(BaseModel):
+    kb_id: str
+
+
+class ConvertSourceIn(BaseModel):
+    name: str | None = None
+    source_type: str = "rss"
+
+
+class CompareIn(BaseModel):
+    result_ids: list[str]
+
+
+class CompareSummaryOut(BaseModel):
+    dimensions: list[dict[str, Any]]
+    verdict: str
+    model: str
+
+
+class ImportPackIn(BaseModel):
+    name: str
+    query: SniffQueryIn
+    description: str | None = None
+    schedule_cron: str | None = None
+
+
+# --- P2: 定时调度 / 健康检查 ---
+
+class SnifferPackFullOut(BaseModel):
+    pack_id: str
+    name: str
+    query_json: str
+    description: str | None
+    schedule_cron: str | None
+    last_run_at: datetime | None
+    next_run_at: datetime | None
+    created_at: datetime | None
+
+
+class UpdatePackScheduleIn(BaseModel):
+    schedule_cron: str | None = None
+
+
+class ChannelHealthOut(BaseModel):
+    channel_id: str
+    display_name: str
+    icon: str
+    tier: str
+    status: str
+    message: str
+    latency_ms: int | None

@@ -7,6 +7,7 @@ import LLMSettingsModal from "./components/LLMSettingsModal";
 import type { ViewId } from "./components/NavBar";
 import FeedPage from "./pages/FeedPage";
 import KBPage from "./pages/KBPage";
+import SnifferPage from "./pages/SnifferPage";
 import TagPage from "./pages/TagPage";
 import TrendingPage from "./pages/TrendingPage";
 import type { TrendingReport } from "./types";
@@ -71,6 +72,7 @@ export default function App() {
           {activeView === "tags" && <TagPage onNavigateToTrending={() => setActiveView("trending")} />}
           {activeView === "kb" && <KBPage />}
           {activeView === "feeds" && <FeedPage onRequestShowLogs={handleRequestShowLogs} />}
+          {activeView === "sniffer" && <SnifferPage />}
         </main>
       </div>
 

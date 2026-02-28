@@ -179,3 +179,77 @@ export type LLMSettings = {
   temperature: number;
   max_tokens: number;
 };
+
+// --- 资源嗅探类型 ---
+
+export type SniffResult = {
+  result_id: string;
+  channel: string;
+  title: string;
+  url: string;
+  snippet: string;
+  author: string | null;
+  published_at: string | null;
+  media_type: string;
+  metrics: Record<string, number>;
+  query_keyword: string;
+};
+
+export type SniffQuery = {
+  keyword: string;
+  channels: string[];
+  time_range: string;
+  sort_by: string;
+  max_results_per_channel: number;
+};
+
+export type SearchSummary = {
+  total: number;
+  keyword: string;
+  channel_distribution: Record<string, number>;
+  keyword_clusters: { word: string; count: number }[];
+  time_distribution: Record<string, number>;
+  top_by_engagement: { result_id: string; title: string; channel: string; engagement: number }[];
+};
+
+export type SearchResponse = {
+  results: SniffResult[];
+  summary: SearchSummary;
+};
+
+export type ChannelInfo = {
+  channel_id: string;
+  display_name: string;
+  icon: string;
+  tier: string;
+  media_types: string[];
+  status: string;
+  message: string;
+};
+
+export type SnifferPack = {
+  pack_id: string;
+  name: string;
+  query_json: string;
+  description: string | null;
+  schedule_cron: string | null;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_at: string | null;
+};
+
+export type CompareSummary = {
+  dimensions: { name: string; items: { title: string; score: number; comment: string }[] }[];
+  verdict: string;
+  model: string;
+};
+
+export type ChannelHealth = {
+  channel_id: string;
+  display_name: string;
+  icon: string;
+  tier: string;
+  status: string;
+  message: string;
+  latency_ms: number | null;
+};
