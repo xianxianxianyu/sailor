@@ -3,6 +3,7 @@ import type {
   KBItemResource,
   KBReport,
   KnowledgeBase,
+  LLMSettings,
   MainFlowTask,
   PipelineResult,
   Resource,
@@ -298,4 +299,34 @@ export interface IngestionStatus {
 
 export function getIngestionStatus(): Promise<IngestionStatus> {
   return requestJson("/tasks/ingestion-status");
+}
+
+// --- LLM 设置 API ---
+
+export function getLLMSettings(): Promise<LLMSettings> {
+  return requestJson("/settings/llm");
+}
+
+export function updateLLMSettings(payload: {
+  provider: string;
+  api_key?: string;
+  base_url: string;
+  model: string;
+  temperature: number;
+  max_tokens: number;
+}): Promise<LLMSettings> {
+  return requestJson("/settings/llm", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function testLLMConnection(): Promise<{ success: boolean; message: string }> {
+  return requestJson("/settings/llm/test", { method: "POST" });
+}
+
+// --- 单条 LLM 分析 API ---
+
+export function analyzeResource(resourceId: string): Promise<ResourceAnalysis> {
+  return requestJson(`/resources/${resourceId}/analyze`, { method: "POST" });
 }

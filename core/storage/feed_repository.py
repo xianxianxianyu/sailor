@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import datetime
+
+logger = logging.getLogger("sailor")
 
 from core.models import RSSFeed
 from core.storage.db import Database
@@ -95,13 +98,28 @@ class FeedRepository:
             )
 
     def list_feed_resources(self, feed_id: str, limit: int = 50, offset: int = 0) -> list[dict]:
-        """获取 RSS 源的资源列表"""
+        """获取 RSS 源的资源列表。
+        兼容两种数据路径：
+        1. 新路径（run_feed 写 source_item_index）：通过索引表 JOIN
+        2. 历史路径（仅写 resources.source = feed_name）：通过 source 字段匹配
+        两路取并集，按最近抓取时间排序。
+        """
         with self.db.connect() as conn:
-            # 先获取 feed 的 name
             feed_row = conn.execute("SELECT name FROM rss_feeds WHERE feed_id = ?", (feed_id,)).fetchone()
             if not feed_row:
+                logger.warning(f"[feed_repo] list_feed_resources: feed_id={feed_id} not found in rss_feeds")
                 return []
             feed_name = feed_row["name"]
+            logger.info(f"[feed_repo] list_feed_resources: feed_id={feed_id}, feed_name={feed_name!r}")
+
+            # 诊断：分别统计两个路径各有多少条
+            idx_count = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM source_item_index WHERE source_id = ?", (feed_id,)
+            ).fetchone()["cnt"]
+            src_count = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM resources WHERE source = ?", (feed_name,)
+            ).fetchone()["cnt"]
+            logger.info(f"[feed_repo] source_item_index count={idx_count}, resources.source match count={src_count}")
 
             rows = conn.execute(
                 """
@@ -115,13 +133,26 @@ class FeedRepository:
                     original_url,
                     topics_json,
                     summary,
-                    created_at AS last_seen_at
-                FROM resources
-                WHERE source = ?
-                ORDER BY created_at DESC
+                    MAX(last_seen_at) AS last_seen_at
+                FROM (
+                    SELECT r.resource_id, r.canonical_url, r.source, r.title, r.published_at,
+                           r.text, r.original_url, r.topics_json, r.summary,
+                           sii.last_seen_at
+                    FROM source_item_index AS sii
+                    JOIN resources AS r ON r.resource_id = sii.resource_id
+                    WHERE sii.source_id = ?
+                    UNION
+                    SELECT r.resource_id, r.canonical_url, r.source, r.title, r.published_at,
+                           r.text, r.original_url, r.topics_json, r.summary,
+                           r.created_at AS last_seen_at
+                    FROM resources AS r
+                    WHERE r.source = ?
+                )
+                GROUP BY resource_id
+                ORDER BY MAX(last_seen_at) DESC
                 LIMIT ? OFFSET ?
                 """,
-                (feed_name, limit, offset),
+                (feed_id, feed_name, limit, offset),
             ).fetchall()
 
         return [dict(row) for row in rows]

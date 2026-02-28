@@ -239,3 +239,29 @@ class CreateTagIn(BaseModel):
 class UpdateTagIn(BaseModel):
     name: str | None = None
     color: str | None = None
+
+
+# --- LLM 设置 ---
+
+class LLMSettingsOut(BaseModel):
+    provider: str
+    api_key_set: bool
+    api_key_preview: str
+    base_url: str
+    model: str
+    temperature: float
+    max_tokens: int
+
+
+class UpdateLLMSettingsIn(BaseModel):
+    provider: str
+    api_key: str | None = None
+    base_url: str
+    model: str
+    temperature: float = 0.3
+    max_tokens: int = 1500
+
+
+class TestLLMOut(BaseModel):
+    success: bool
+    message: str

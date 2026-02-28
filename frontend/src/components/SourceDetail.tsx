@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { SourceRecord, SourceResource, RSSFeed } from "../types";
-import { getSourceResources, getFeedResources, getKnowledgeBases, addToKnowledgeBase } from "../api";
+import type { ResourceAnalysis } from "../types";
+import { getSourceResources, getFeedResources, getKnowledgeBases, addToKnowledgeBase, analyzeResource } from "../api";
 import type { KnowledgeBase } from "../types";
 
 type AnySource = (SourceRecord & { sourceKind: "unified" }) | (RSSFeed & { sourceKind: "rss" });
@@ -17,36 +18,42 @@ interface SourceDetailProps {
 export default function SourceDetail({ source, onRun, onToggle, onDelete, actingSourceId, refreshKey = 0 }: SourceDetailProps) {
   const [resources, setResources] = useState<SourceResource[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
+  const [resourceError, setResourceError] = useState<string | null>(null);
   const [showKbModal, setShowKbModal] = useState(false);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [addingToKb, setAddingToKb] = useState(false);
+  const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
+  const [analysisResults, setAnalysisResults] = useState<Record<string, ResourceAnalysis>>({});
+  const [analysisErrors, setAnalysisErrors] = useState<Record<string, string>>({});
+  const [expandedAnalysis, setExpandedAnalysis] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!source) {
       setResources([]);
+      setResourceError(null);
       return;
     }
 
     const isRss = source.sourceKind === "rss";
 
     if (isRss) {
-      // RSS 源 - 使用 feed_id
       const feedId = (source as RSSFeed).feed_id;
       setLoadingResources(true);
+      setResourceError(null);
       getFeedResources(feedId, 80, 0)
-        .then(setResources)
-        .catch(() => setResources([]))
+        .then((data) => { console.log("[SourceDetail] getFeedResources result:", data.length, "items"); setResources(data); })
+        .catch((e) => { console.error("[SourceDetail] getFeedResources error:", e); setResourceError(String(e)); setResources([]); })
         .finally(() => setLoadingResources(false));
       return;
     }
 
-    // 统一源 - 使用 source_id
     const sourceId = (source as SourceRecord).source_id;
     setLoadingResources(true);
+    setResourceError(null);
     getSourceResources(sourceId, 80, 0)
-      .then(setResources)
-      .catch(() => setResources([]))
+      .then((data) => { console.log("[SourceDetail] getSourceResources result:", data.length, "items"); setResources(data); })
+      .catch((e) => { console.error("[SourceDetail] getSourceResources error:", e); setResourceError(String(e)); setResources([]); })
       .finally(() => setLoadingResources(false));
   }, [source, refreshKey]);
 
@@ -72,6 +79,36 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
       // handle error
     } finally {
       setAddingToKb(false);
+    }
+  }
+
+  async function handleAnalyze(resourceId: string) {
+    // 已有结果 → 切换展开
+    if (analysisResults[resourceId]) {
+      setExpandedAnalysis((prev) => {
+        const next = new Set(prev);
+        if (next.has(resourceId)) next.delete(resourceId);
+        else next.add(resourceId);
+        return next;
+      });
+      return;
+    }
+
+    setAnalyzingIds((prev) => new Set(prev).add(resourceId));
+    setAnalysisErrors((prev) => { const n = { ...prev }; delete n[resourceId]; return n; });
+    try {
+      const result = await analyzeResource(resourceId);
+      setAnalysisResults((prev) => ({ ...prev, [resourceId]: result }));
+      setExpandedAnalysis((prev) => new Set(prev).add(resourceId));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "分析失败";
+      setAnalysisErrors((prev) => ({ ...prev, [resourceId]: msg }));
+    } finally {
+      setAnalyzingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(resourceId);
+        return next;
+      });
     }
   }
 
@@ -192,15 +229,19 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
       </div>
 
       <div className="source-detail-resources">
-        <h4>最近抓取内容 {!isRss && `(${resources.length}条)`}</h4>
+        <h4>最近抓取内容 {resources.length > 0 && `(${resources.length} 条)`}</h4>
 
         {loadingResources ? (
           <p className="source-detail-loading">加载中...</p>
+        ) : resourceError ? (
+          <p className="source-detail-hint" style={{ color: "var(--danger)" }}>
+            加载失败：{resourceError}
+          </p>
         ) : resources.length === 0 ? (
           <p className="source-detail-hint">暂无抓取结果，点击运行按钮开始抓取</p>
         ) : (
           <div className="source-resource-list">
-            {resources.slice(0, 5).map((item) => (
+            {resources.map((item) => (
               <article key={item.resource_id} className="source-resource-card">
                 <div className="source-resource-card-header">
                   <a
@@ -211,16 +252,75 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
                   >
                     {item.title}
                   </a>
-                  <button className="add-btn add-btn-sm" onClick={() => openAddToKb(item.resource_id)}>
-                    + 加入知识库
-                  </button>
+                  <div className="source-resource-card-actions">
+                    <button
+                      className="add-btn add-btn-sm"
+                      onClick={() => openAddToKb(item.resource_id)}
+                      title="添加到知识库"
+                    >
+                      + 知识库
+                    </button>
+                    <button
+                      className="add-btn add-btn-sm llm-analyze-btn"
+                      onClick={() => handleAnalyze(item.resource_id)}
+                      disabled={analyzingIds.has(item.resource_id)}
+                      title="LLM 智能分析"
+                    >
+                      {analyzingIds.has(item.resource_id)
+                        ? "分析中..."
+                        : analysisResults[item.resource_id]
+                          ? (expandedAnalysis.has(item.resource_id) ? "收起分析" : "查看分析")
+                          : "LLM 总结"}
+                    </button>
+                  </div>
                 </div>
                 {item.summary && <p className="source-resource-summary">{item.summary}</p>}
+
+                {/* 分析错误提示 */}
+                {analysisErrors[item.resource_id] && (
+                  <div className="analysis-error">
+                    {analysisErrors[item.resource_id]}
+                  </div>
+                )}
+
+                {/* 分析结果展开区 */}
+                {expandedAnalysis.has(item.resource_id) && analysisResults[item.resource_id] && (() => {
+                  const a = analysisResults[item.resource_id];
+                  return (
+                    <div className="analysis-result">
+                      <div className="analysis-summary">
+                        <strong>LLM 摘要：</strong>{a.summary}
+                      </div>
+                      {a.topics.length > 0 && (
+                        <div className="analysis-topics">
+                          {a.topics.map((t) => (
+                            <span key={t} className="analysis-topic-badge">{t}</span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="analysis-scores">
+                        <span>深度 {a.scores.depth}/10</span>
+                        <span>实用 {a.scores.utility}/10</span>
+                        <span>新颖 {a.scores.novelty}/10</span>
+                      </div>
+                      <div className="analysis-meta">
+                        tokens: {a.prompt_tokens + a.completion_tokens} ({a.prompt_tokens} + {a.completion_tokens})
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="source-resource-meta">
-                  <span>最近抓取：{item.last_seen_at ? formatDate(item.last_seen_at) : "-"}</span>
                   {item.topics.length > 0 && (
-                    <span className="source-resource-topics">标签：{item.topics.join(" / ")}</span>
+                    <span className="source-resource-tags">
+                      {item.topics.map((t) => (
+                        <span key={t} className="source-resource-tag">{t}</span>
+                      ))}
+                    </span>
                   )}
+                  <span className="source-resource-date">
+                    {item.last_seen_at ? formatDate(item.last_seen_at) : "-"}
+                  </span>
                 </div>
               </article>
             ))}

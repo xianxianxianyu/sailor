@@ -17,6 +17,7 @@ from backend.app.routers.sources import mount_source_routes
 from backend.app.routers.tags import mount_tag_routes
 from backend.app.routers.trending import mount_trending_routes
 from backend.app.routers.logs import mount_log_routes
+from backend.app.routers.settings import mount_settings_routes
 
 # 配置日志
 logging.basicConfig(
@@ -58,6 +59,7 @@ app.include_router(mount_report_routes(container))
 app.include_router(mount_tag_routes(container))
 app.include_router(mount_trending_routes(container))
 app.include_router(mount_log_routes(container))
+app.include_router(mount_settings_routes(container))
 
 
 @app.on_event("startup")

@@ -83,16 +83,24 @@ def mount_feed_routes(container: AppContainer) -> APIRouter:
 
                     raw_entry = RawEntry(
                         entry_id=link or f"{feed.name}:{title}",
+                        feed_id=feed.feed_id,
                         source=feed.name,
                         url=link,
                         title=title,
-                        published=published,
+                        published_at=published,
                         content=summary,
                     )
 
                     # 处理并入库
                     resource = container.ingestion_service.pipeline.process(raw_entry)
                     container.resource_repo.upsert(resource)
+                    # 写入索引，使 list_feed_resources 可通过 source_item_index 找到
+                    container.source_repo.upsert_item_index(
+                        source_id=feed_id,
+                        item_key=raw_entry.entry_id,
+                        canonical_url=resource.canonical_url,
+                        resource_id=resource.resource_id,
+                    )
                     processed += 1
                 except Exception:
                     logger.exception(f"[feeds] 处理条目失败: {getattr(entry, 'link', 'unknown')}")
@@ -107,6 +115,7 @@ def mount_feed_routes(container: AppContainer) -> APIRouter:
             )
 
             logger.info(f"[feeds] 完成 feed: {feed_id}, 获取 {len(entries)} 条, 处理 {processed} 条")
+
             return RunFeedOut(
                 feed_id=feed_id,
                 status="success",
@@ -167,7 +176,9 @@ def mount_feed_routes(container: AppContainer) -> APIRouter:
         """获取 RSS 源的最近抓取内容"""
         import json
 
+        logger.info(f"[feeds] get_feed_resources called: feed_id={feed_id}, limit={limit}, offset={offset}")
         items = container.feed_repo.list_feed_resources(feed_id, limit, offset)
+        logger.info(f"[feeds] list_feed_resources returned {len(items)} items for feed_id={feed_id}")
         result = []
         for item in items:
             topics = json.loads(item.get("topics_json", "[]")) if item.get("topics_json") else []

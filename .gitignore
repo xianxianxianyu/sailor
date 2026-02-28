@@ -4,3 +4,5 @@ __pycache__/
 node_modules/
 dist/
 data/sailor.db
+data/llm_config.json
+.env

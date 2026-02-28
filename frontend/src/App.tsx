@@ -3,6 +3,7 @@ import { useState } from "react";
 import { getTrending, runFullPipeline } from "./api";
 import NavBar from "./components/NavBar";
 import LogPanel from "./components/LogPanel";
+import LLMSettingsModal from "./components/LLMSettingsModal";
 import type { ViewId } from "./components/NavBar";
 import FeedPage from "./pages/FeedPage";
 import KBPage from "./pages/KBPage";
@@ -16,6 +17,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [showLogs, setShowLogs] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   function handleRequestShowLogs() {
     setShowLogs(true);
@@ -63,7 +65,7 @@ export default function App() {
       {message && <p className="message">{message}</p>}
 
       <div className="app-body">
-        <NavBar active={activeView} onChange={setActiveView} />
+        <NavBar active={activeView} onChange={setActiveView} onSettingsClick={() => setShowSettings(true)} />
         <main className="main-area">
           {activeView === "trending" && <TrendingPage report={report} loading={loading} />}
           {activeView === "tags" && <TagPage onNavigateToTrending={() => setActiveView("trending")} />}
@@ -73,6 +75,7 @@ export default function App() {
       </div>
 
       <LogPanel isOpen={showLogs} onClose={() => setShowLogs(false)} />
+      <LLMSettingsModal open={showSettings} onClose={() => setShowSettings(false)} />
     </div>
   );
 }

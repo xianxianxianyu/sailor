@@ -4,6 +4,7 @@ from dataclasses import asdict
 from datetime import datetime
 import hashlib
 import json
+import logging
 from pathlib import Path
 import re
 from typing import Any
@@ -28,6 +29,7 @@ from backend.app.schemas import (
 )
 from core.models import RawEntry, SourceRecord
 
+logger = logging.getLogger("sailor")
 router = APIRouter(prefix="/sources", tags=["sources"])
 
 
@@ -180,6 +182,7 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
                 metadata={"source_type": source.source_type},
             )
             add_log("INFO", f"[sources] 完成 source: {source_id}, 获取 {len(entries)} 条, 处理 {processed} 条")
+
             return RunSourceOut(
                 run_id=run.run_id,
                 source_id=source.source_id,
@@ -220,6 +223,12 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
                 for entry in entries:
                     resource = container.ingestion_service.pipeline.process(entry)
                     container.resource_repo.upsert(resource)
+                    container.source_repo.upsert_item_index(
+                        source_id=source.source_id,
+                        item_key=entry.entry_id,
+                        canonical_url=resource.canonical_url,
+                        resource_id=resource.resource_id,
+                    )
                     processed += 1
 
                 success_count += 1
@@ -245,10 +254,12 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
     @router.get("/{source_id}/resources", response_model=list[SourceResourceOut])
     def get_source_resources(source_id: str, limit: int = 50, offset: int = 0) -> list[SourceResourceOut]:
         """获取统一源的最近抓取内容"""
+        from backend.app.routers.logs import add_log
+        add_log("INFO", f"[sources] get_source_resources called: source_id={source_id}, limit={limit}")
         items = container.source_repo.list_source_resources(source_id, limit, offset)
+        add_log("INFO", f"[sources] list_source_resources returned {len(items)} items for source_id={source_id}")
         result = []
         for item in items:
-            topics = json.loads(item.topics_json) if item.topics_json else []
             result.append(SourceResourceOut(
                 resource_id=item.resource_id,
                 canonical_url=item.canonical_url,
@@ -257,7 +268,7 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
                 published_at=item.published_at,
                 text=item.text,
                 original_url=item.original_url,
-                topics=topics,
+                topics=item.topics,
                 summary=item.summary,
                 last_seen_at=item.last_seen_at,
             ))
@@ -351,7 +362,7 @@ def _collect_rss_entries(source: SourceRecord) -> list[RawEntry]:
             RawEntry(
                 entry_id=entry_id,
                 feed_id=source.source_id,
-                source=source.source_type,
+                source=source.name,
                 title=title,
                 url=str(link),
                 content=content,

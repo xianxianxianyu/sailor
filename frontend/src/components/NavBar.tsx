@@ -12,9 +12,10 @@ const NAV_ITEMS: NavItem[] = [
 type Props = {
   active: ViewId;
   onChange: (id: ViewId) => void;
+  onSettingsClick: () => void;
 };
 
-export default function NavBar({ active, onChange }: Props) {
+export default function NavBar({ active, onChange, onSettingsClick }: Props) {
   return (
     <nav className="nav-bar" role="navigation" aria-label="主导航">
       {NAV_ITEMS.map((item) => (
@@ -29,6 +30,15 @@ export default function NavBar({ active, onChange }: Props) {
           <span className="nav-label">{item.label}</span>
         </button>
       ))}
+
+      <button
+        className="nav-item nav-settings"
+        onClick={onSettingsClick}
+        title="模型配置"
+      >
+        <span className="nav-icon">⚙</span>
+        <span className="nav-label">配置</span>
+      </button>
     </nav>
   );
 }

@@ -167,3 +167,15 @@ export type KBItemResource = {
   topics: string[];
   added_at: string;
 };
+
+// --- LLM 设置类型 ---
+
+export type LLMSettings = {
+  provider: string;
+  api_key_set: boolean;
+  api_key_preview: string;
+  base_url: string;
+  model: string;
+  temperature: number;
+  max_tokens: number;
+};

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,6 +26,8 @@ from core.tasks import MainUserFlowTaskPlanner
 
 from .config import Settings, load_settings
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass(slots=True)
 class AppContainer:
@@ -42,6 +46,60 @@ class AppContainer:
     article_agent: ArticleAnalysisAgent
     kb_agent: KBClusterAgent
     tagging_agent: TaggingAgent
+
+    def reload_llm(
+        self,
+        api_key: str,
+        base_url: str,
+        model: str,
+        temperature: float,
+        max_tokens: int,
+    ) -> None:
+        """热重载 LLM 客户端及所有依赖它的 Agent，保存设置后立即生效。"""
+        new_config = LLMConfig(
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        new_client = LLMClient(new_config)
+        self.llm_client = new_client
+        self.article_agent = ArticleAnalysisAgent(
+            llm=new_client,
+            analysis_repo=self.analysis_repo,
+            resource_repo=self.resource_repo,
+            kb_repo=self.kb_repo,
+        )
+        self.kb_agent = KBClusterAgent(
+            llm=new_client,
+            report_repo=self.report_repo,
+            analysis_repo=self.analysis_repo,
+            resource_repo=self.resource_repo,
+            kb_repo=self.kb_repo,
+        )
+        self.tagging_agent = TaggingAgent(llm=new_client, tag_repo=self.tag_repo)
+
+
+def _load_persisted_llm_config(data_dir: Path) -> dict:
+    """读取 data/llm_config.json 中持久化的 LLM 非敏感配置。"""
+    config_file = data_dir / "llm_config.json"
+    if config_file.exists():
+        try:
+            return json.loads(config_file.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning("读取 llm_config.json 失败: %s", exc)
+    return {}
+
+
+def _load_persisted_api_key() -> str:
+    """从 OS keyring 读取 API Key。"""
+    try:
+        import keyring
+        key = keyring.get_password("sailor-llm", "api_key")
+        return key or ""
+    except Exception:
+        return ""
 
 
 def build_container(project_root: Path) -> AppContainer:
@@ -74,10 +132,17 @@ def build_container(project_root: Path) -> AppContainer:
     )
     task_planner = MainUserFlowTaskPlanner(resource_repo)
 
+    # LLM 配置优先级: keyring + llm_config.json > 环境变量
+    data_dir = settings.db_path.parent
+    persisted = _load_persisted_llm_config(data_dir)
+    persisted_key = _load_persisted_api_key()
+
     llm_config = LLMConfig(
-        api_key=settings.openai_api_key,
-        base_url=settings.openai_base_url,
-        model=settings.openai_model,
+        api_key=persisted_key or settings.openai_api_key,
+        base_url=persisted.get("base_url", settings.openai_base_url),
+        model=persisted.get("model", settings.openai_model),
+        temperature=persisted.get("temperature", 0.3),
+        max_tokens=persisted.get("max_tokens", 1500),
     )
     llm_client = LLMClient(llm_config)
     article_agent = ArticleAnalysisAgent(
@@ -112,3 +177,4 @@ def build_container(project_root: Path) -> AppContainer:
         kb_agent=kb_agent,
         tagging_agent=tagging_agent,
     )
+
