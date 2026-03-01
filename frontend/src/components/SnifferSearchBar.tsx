@@ -11,9 +11,16 @@ type Props = {
     max_results_per_channel: number;
   }) => void;
   loading: boolean;
+  onSavePack?: (query: {
+    keyword: string;
+    channels: string[];
+    time_range: string;
+    sort_by: string;
+    max_results_per_channel: number;
+  }) => void;
 };
 
-export default function SnifferSearchBar({ onSearch, loading }: Props) {
+export default function SnifferSearchBar({ onSearch, loading, onSavePack }: Props) {
   const [keyword, setKeyword] = useState("");
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [selectedChannels, setSelectedChannels] = useState<string[]>([]);
@@ -56,6 +63,21 @@ export default function SnifferSearchBar({ onSearch, loading }: Props) {
         <button type="submit" className="sniffer-search-btn" disabled={loading || !keyword.trim()}>
           {loading ? "搜索中..." : "搜索"}
         </button>
+        {onSavePack && keyword.trim() && (
+          <button
+            type="button"
+            className="sniffer-action-btn"
+            onClick={() => onSavePack({
+              keyword: keyword.trim(),
+              channels: selectedChannels,
+              time_range: timeRange,
+              sort_by: sortBy,
+              max_results_per_channel: 10,
+            })}
+          >
+            保存为嗅探包
+          </button>
+        )}
       </div>
 
       <div className="sniffer-filters">

@@ -8,7 +8,7 @@ from core.collector.base import CollectionEngine
 from core.pipeline.base import PreprocessPipeline
 from core.storage.repositories import ResourceRepository
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)

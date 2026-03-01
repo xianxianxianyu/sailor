@@ -7,7 +7,7 @@ from datetime import datetime
 from core.models import SniffQuery, SniffResult
 from core.storage.db import Database
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 
 class RSSAdapter:

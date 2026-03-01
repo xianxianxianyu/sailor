@@ -12,6 +12,9 @@ class Database:
     def connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.execute("PRAGMA busy_timeout=5000")
         return conn
 
     def init_schema(self) -> None:
@@ -205,5 +208,109 @@ class Database:
                     summary_json    TEXT NOT NULL,
                     created_at      TEXT DEFAULT CURRENT_TIMESTAMP
                 );
+
+                -- V2 Provenance infrastructure --
+
+                CREATE TABLE IF NOT EXISTS jobs (
+                    job_id        TEXT PRIMARY KEY,
+                    job_type      TEXT NOT NULL,
+                    status        TEXT NOT NULL DEFAULT 'queued',
+                    input_json    TEXT NOT NULL DEFAULT '{}',
+                    output_json   TEXT,
+                    error_class   TEXT,
+                    error_message TEXT,
+                    created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
+                    started_at    TEXT,
+                    finished_at   TEXT,
+                    metadata_json TEXT NOT NULL DEFAULT '{}'
+                );
+
+                CREATE TABLE IF NOT EXISTS provenance_events (
+                    event_id    TEXT PRIMARY KEY,
+                    run_id      TEXT NOT NULL,
+                    event_type  TEXT NOT NULL,
+                    actor       TEXT NOT NULL DEFAULT 'system',
+                    entity_refs TEXT NOT NULL DEFAULT '{}',
+                    payload_json TEXT NOT NULL DEFAULT '{}',
+                    ts          TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_prov_events_run
+                ON provenance_events(run_id, ts);
+
+                CREATE TABLE IF NOT EXISTS tool_calls (
+                    tool_call_id    TEXT PRIMARY KEY,
+                    run_id          TEXT NOT NULL,
+                    tool_name       TEXT NOT NULL,
+                    tool_version    TEXT NOT NULL DEFAULT 'v1',
+                    request_json    TEXT NOT NULL DEFAULT '{}',
+                    status          TEXT NOT NULL DEFAULT 'pending',
+                    output_ref      TEXT,
+                    error_message   TEXT,
+                    idempotency_key TEXT,
+                    started_at      TEXT DEFAULT CURRENT_TIMESTAMP,
+                    finished_at     TEXT,
+                    FOREIGN KEY(run_id) REFERENCES jobs(job_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_tool_calls_run
+                ON tool_calls(run_id);
+                CREATE INDEX IF NOT EXISTS idx_tool_calls_idemp
+                ON tool_calls(idempotency_key);
+
+                CREATE TABLE IF NOT EXISTS raw_captures (
+                    capture_id    TEXT PRIMARY KEY,
+                    tool_call_id  TEXT,
+                    channel       TEXT NOT NULL,
+                    content_ref   TEXT NOT NULL,
+                    checksum      TEXT,
+                    content_type  TEXT NOT NULL DEFAULT 'json',
+                    created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY(tool_call_id) REFERENCES tool_calls(tool_call_id)
+                );
+
+                CREATE TABLE IF NOT EXISTS sniffer_run_log (
+                    run_id          TEXT PRIMARY KEY,
+                    job_id          TEXT,
+                    query_json      TEXT NOT NULL,
+                    pack_id         TEXT,
+                    status          TEXT NOT NULL DEFAULT 'running',
+                    result_count    INTEGER NOT NULL DEFAULT 0,
+                    channels_used   TEXT NOT NULL DEFAULT '[]',
+                    error_message   TEXT,
+                    started_at      TEXT NOT NULL,
+                    finished_at     TEXT,
+                    metadata_json   TEXT NOT NULL DEFAULT '{}',
+                    FOREIGN KEY(job_id) REFERENCES jobs(job_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_sniffer_run_started
+                ON sniffer_run_log(started_at DESC);
+
+                CREATE TABLE IF NOT EXISTS schedules (
+                    schedule_id      TEXT PRIMARY KEY,
+                    schedule_type    TEXT NOT NULL,
+                    ref_id           TEXT NOT NULL,
+                    interval_seconds INTEGER NOT NULL DEFAULT 3600,
+                    cron_expr        TEXT,
+                    next_run_at      TEXT,
+                    last_run_at      TEXT,
+                    enabled          INTEGER NOT NULL DEFAULT 1,
+                    locked_until     TEXT,
+                    created_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(schedule_type, ref_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_schedules_next
+                ON schedules(enabled, next_run_at);
+
+                CREATE TABLE IF NOT EXISTS pending_confirms (
+                    confirm_id   TEXT PRIMARY KEY,
+                    job_id       TEXT,
+                    action_type  TEXT NOT NULL,
+                    payload_json TEXT NOT NULL DEFAULT '{}',
+                    status       TEXT NOT NULL DEFAULT 'pending',
+                    created_at   TEXT DEFAULT CURRENT_TIMESTAMP,
+                    resolved_at  TEXT,
+                    FOREIGN KEY(job_id) REFERENCES jobs(job_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_pending_confirms_status
+                ON pending_confirms(status);
                 """
             )

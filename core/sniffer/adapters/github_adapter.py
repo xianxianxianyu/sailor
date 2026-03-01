@@ -10,7 +10,7 @@ from urllib.parse import quote_plus
 
 from core.models import SniffQuery, SniffResult
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 GITHUB_SEARCH_URL = "https://api.github.com/search/repositories"
 

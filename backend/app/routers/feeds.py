@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from backend.app.container import AppContainer
 from backend.app.schemas import FeedOut, ImportOPMLIn, RunFeedOut, SourceResourceOut
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/feeds", tags=["feeds"])
 
@@ -34,7 +34,7 @@ def mount_feed_routes(container: AppContainer) -> APIRouter:
     def add_feed(payload: AddFeedIn) -> FeedOut:
         logger.info(f"添加订阅源: {payload.name} ({payload.xml_url})")
         feed = container.feed_repo.add_feed(payload.name, payload.xml_url, payload.html_url)
-        logger.info(f"✅ 订阅源添加成功: {feed.id}")
+        logger.info("订阅源添加成功: %s", feed.feed_id)
         return FeedOut.model_validate(asdict(feed))
 
     @router.delete("/{feed_id}")
@@ -43,7 +43,7 @@ def mount_feed_routes(container: AppContainer) -> APIRouter:
         deleted = container.feed_repo.delete_feed(feed_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Feed not found")
-        logger.info(f"✅ 订阅源已删除: {feed_id}")
+        logger.info("订阅源已删除: %s", feed_id)
         return {"deleted": True}
 
     @router.patch("/{feed_id}")
@@ -78,7 +78,14 @@ def mount_feed_routes(container: AppContainer) -> APIRouter:
 
                     link = getattr(entry, "link", None) or ""
                     title = getattr(entry, "title", "无标题")
-                    published = getattr(entry, "published", None) or getattr(entry, "updated", None)
+                    published_raw = getattr(entry, "published", None) or getattr(entry, "updated", None)
+                    published_at = None
+                    if published_raw:
+                        candidate = str(published_raw).replace("Z", "+00:00")
+                        try:
+                            published_at = datetime.fromisoformat(candidate)
+                        except (ValueError, TypeError):
+                            published_at = None
                     summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
 
                     raw_entry = RawEntry(
@@ -87,7 +94,7 @@ def mount_feed_routes(container: AppContainer) -> APIRouter:
                         source=feed.name,
                         url=link,
                         title=title,
-                        published_at=published,
+                        published_at=published_at,
                         content=summary,
                     )
 
@@ -135,24 +142,24 @@ def mount_feed_routes(container: AppContainer) -> APIRouter:
 
     @router.post("/import-opml")
     def import_opml(payload: ImportOPMLIn) -> dict:
-        from core.collector.opml_parser import parse_opML
+        from core.collector.opml_parser import parse_opml
 
-        logger.info("📥 开始导入 OPML 文件...")
+        logger.info("开始导入 OPML 文件...")
         opml_path = Path(payload.opml_file) if payload.opml_file else container.settings.opml_file
         if not opml_path.exists():
-            logger.error(f"❌ OPML 文件不存在: {opml_path}")
+            logger.error("OPML 文件不存在: %s", opml_path)
             raise HTTPException(status_code=404, detail=f"OPML 文件不存在: {opml_path}")
 
         content = opml_path.read_text(encoding="utf-8")
         feed_infos = parse_opml(content)
-        logger.info(f"📄 解析到 {len(feed_infos)} 个订阅源")
+        logger.info("解析到 %d 个订阅源", len(feed_infos))
 
         feeds_data = [
             {"name": f.name, "xml_url": f.xml_url, "html_url": f.html_url}
             for f in feed_infos
         ]
         imported = container.feed_repo.import_feeds(feeds_data)
-        logger.info(f"✅ 成功导入 {imported}/{len(feed_infos)} 个订阅源")
+        logger.info("成功导入 %d/%d 个订阅源", imported, len(feed_infos))
         return {"imported": imported, "total_parsed": len(feed_infos)}
 
     @router.get("/source-status")
@@ -162,7 +169,7 @@ def mount_feed_routes(container: AppContainer) -> APIRouter:
         errored = sum(1 for f in feeds if f.error_count > 0)
         miniflux_ok = bool(container.settings.miniflux_base_url and container.settings.miniflux_token)
         seed_exists = container.settings.seed_file.exists()
-        logger.info(f"📊 订阅源状态: 总计 {len(feeds)}, 启用 {enabled}, 错误 {errored}")
+        logger.info("订阅源状态: 总计 %d, 启用 %d, 错误 %d", len(feeds), enabled, errored)
         return {
             "rss_total": len(feeds),
             "rss_enabled": enabled,

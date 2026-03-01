@@ -269,12 +269,19 @@ class TestLLMOut(BaseModel):
 
 # --- 资源嗅探 ---
 
+class BudgetIn(BaseModel):
+    max_workers: int = 5
+    deadline_ms: int = 60000
+    max_tool_calls: int = 20
+
+
 class SniffQueryIn(BaseModel):
     keyword: str
     channels: list[str] = Field(default_factory=list)
     time_range: str = "all"
     sort_by: str = "relevance"
     max_results_per_channel: int = 10
+    budget: BudgetIn | None = None
 
 
 class SniffResultOut(BaseModel):
@@ -381,3 +388,69 @@ class ChannelHealthOut(BaseModel):
     status: str
     message: str
     latency_ms: int | None
+
+
+# --- V2 Provenance ---
+
+class SnifferRunOut(BaseModel):
+    run_id: str
+    job_id: str | None
+    query_json: str
+    pack_id: str | None
+    status: str
+    result_count: int
+    channels_used: list[str]
+    error_message: str | None
+    started_at: datetime | None
+    finished_at: datetime | None
+    metadata: dict[str, Any]
+
+
+class ProvenanceEventOut(BaseModel):
+    event_id: str
+    run_id: str
+    event_type: str
+    actor: str
+    entity_refs: dict[str, Any]
+    payload: dict[str, Any]
+    ts: datetime | None
+
+
+class JobOut(BaseModel):
+    job_id: str
+    job_type: str
+    status: str
+    input_json: str
+    output_json: str | None
+    error_class: str | None
+    error_message: str | None
+    created_at: datetime | None
+    started_at: datetime | None
+    finished_at: datetime | None
+    metadata: dict[str, Any]
+
+
+# --- Stage 4: Unified Scheduler + Confirm Gate ---
+
+class ScheduleOut(BaseModel):
+    schedule_id: str
+    schedule_type: str
+    ref_id: str
+    interval_seconds: int
+    next_run_at: datetime | None
+    last_run_at: datetime | None
+    enabled: bool
+
+
+class PendingConfirmOut(BaseModel):
+    confirm_id: str
+    job_id: str | None
+    action_type: str
+    payload: dict
+    status: str
+    created_at: datetime | None
+    resolved_at: datetime | None
+
+
+class ConfirmActionIn(BaseModel):
+    action: str  # "approve" | "reject"

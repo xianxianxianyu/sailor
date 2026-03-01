@@ -7,7 +7,7 @@ import time
 
 from core.models import RawEntry
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 
 class Collector(ABC):

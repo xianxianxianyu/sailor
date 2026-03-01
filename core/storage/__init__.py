@@ -1,6 +1,7 @@
 from .analysis_repository import AnalysisRepository
 from .db import Database
 from .feed_repository import FeedRepository
+from .job_repository import JobRepository
 from .report_repository import KBReportRepository
 from .repositories import KnowledgeBaseRepository, ResourceRepository
 from .sniffer_repository import SnifferRepository
@@ -11,6 +12,7 @@ __all__ = [
     "AnalysisRepository",
     "Database",
     "FeedRepository",
+    "JobRepository",
     "KBReportRepository",
     "KnowledgeBaseRepository",
     "ResourceRepository",

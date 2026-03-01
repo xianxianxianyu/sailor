@@ -10,7 +10,7 @@ from core.collector.base import Collector
 from core.models import RawEntry
 from core.storage.feed_repository import FeedRepository
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)

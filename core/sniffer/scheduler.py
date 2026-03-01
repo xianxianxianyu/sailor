@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from core.models import SnifferPack
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 # Simple cron-like intervals: "every_1h", "every_6h", "every_12h", "every_24h"
 _INTERVAL_MAP = {

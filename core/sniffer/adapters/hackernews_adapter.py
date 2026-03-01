@@ -9,7 +9,7 @@ from urllib.parse import quote_plus
 
 from core.models import SniffQuery, SniffResult
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 ALGOLIA_SEARCH_URL = "https://hn.algolia.com/api/v1/search"
 

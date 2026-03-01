@@ -11,11 +11,13 @@ from core.agent.kb_agent import KBClusterAgent
 from core.agent.tagging_agent import TaggingAgent
 from core.collector import CollectionEngine, LiveRSSCollector, MinifluxCollector, RSSCollector
 from core.pipeline import build_default_pipeline
+from core.runner import JobRunner, PolicyGate, SnifferHandler, SourceHandler, TaggingHandler, TrendingHandler, IntelligenceHandler, IngestionHandler, UnifiedScheduler
 from core.services import IngestionService
 from core.storage import (
     AnalysisRepository,
     Database,
     FeedRepository,
+    JobRepository,
     KBReportRepository,
     KnowledgeBaseRepository,
     ResourceRepository,
@@ -25,9 +27,8 @@ from core.storage import (
 )
 from core.tasks import MainUserFlowTaskPlanner
 
-from core.sniffer import ChannelRegistry, PackManager, SummaryEngine
+from core.sniffer import ChannelRegistry, PackManager, SnifferToolModule, SummaryEngine
 from core.sniffer.adapters import GitHubAdapter, HackerNewsAdapter, RSSAdapter
-from core.sniffer.scheduler import SnifferScheduler
 
 from .config import Settings, load_settings
 
@@ -54,8 +55,12 @@ class AppContainer:
     sniffer_repo: SnifferRepository
     channel_registry: ChannelRegistry
     summary_engine: SummaryEngine
+    sniffer_tool_module: SnifferToolModule
     pack_manager: PackManager
-    scheduler: SnifferScheduler | None
+    scheduler: UnifiedScheduler | None
+    job_repo: JobRepository
+    job_runner: JobRunner
+    policy_gate: PolicyGate | None
 
     def reload_llm(
         self,
@@ -179,7 +184,71 @@ def build_container(project_root: Path) -> AppContainer:
     summary_engine = SummaryEngine(sniffer_repo=sniffer_repo)
     pack_manager = PackManager(repo=sniffer_repo, registry=channel_registry)
     pack_manager.ensure_presets()
-    scheduler = SnifferScheduler(pack_manager=pack_manager, sniffer_repo=sniffer_repo)
+
+    # V2 Provenance
+    job_repo = JobRepository(db)
+
+    # PolicyGate
+    policy_gate = PolicyGate(job_repo)
+
+    # Job Runner
+    job_runner = JobRunner(job_repo, policy_gate=policy_gate)
+    pipeline = build_default_pipeline()
+    source_handler = SourceHandler(
+        source_repo=source_repo,
+        resource_repo=resource_repo,
+        pipeline=pipeline,
+        base_dir=settings.opml_file.parent,
+    )
+    job_runner.register("source_run", source_handler)
+
+    # Ingestion handler
+    ingestion_handler = IngestionHandler(ingestion_service)
+    job_runner.register("ingestion", ingestion_handler)
+
+    # Sniffer handler
+    sniffer_tool_module = SnifferToolModule(channel_registry, sniffer_repo)
+    sniffer_handler = SnifferHandler(
+        tool_module=sniffer_tool_module,
+        summary_engine=summary_engine,
+        job_repo=job_repo,
+    )
+    job_runner.register("sniffer_search", sniffer_handler)
+
+    # Tagging handler
+    tagging_handler = TaggingHandler(
+        tagging_agent=tagging_agent,
+        resource_repo=resource_repo,
+        tag_repo=tag_repo,
+    )
+    job_runner.register("batch_tag", tagging_handler)
+
+    # Trending handler
+    trending_handler = TrendingHandler(
+        resource_repo=resource_repo,
+        tag_repo=tag_repo,
+    )
+    job_runner.register("trending_generate", trending_handler)
+
+    # Intelligence engine + handler
+    from core.engines.intelligence import ResourceIntelligenceEngine
+    intelligence_engine = ResourceIntelligenceEngine(
+        resource_repo=resource_repo,
+        tag_repo=tag_repo,
+        analysis_repo=analysis_repo,
+        tagging_agent=tagging_agent,
+        article_agent=article_agent,
+    )
+    intelligence_handler = IntelligenceHandler(intelligence_engine)
+    job_runner.register("resource_intelligence_run", intelligence_handler)
+
+    # Unified Scheduler (replaces SnifferScheduler)
+    scheduler = UnifiedScheduler(
+        job_repo=job_repo,
+        job_runner=job_runner,
+        sniffer_repo=sniffer_repo,
+        source_repo=source_repo,
+    )
     scheduler.start()
 
     return AppContainer(
@@ -201,7 +270,11 @@ def build_container(project_root: Path) -> AppContainer:
         sniffer_repo=sniffer_repo,
         channel_registry=channel_registry,
         summary_engine=summary_engine,
+        sniffer_tool_module=sniffer_tool_module,
         pack_manager=pack_manager,
         scheduler=scheduler,
+        job_repo=job_repo,
+        job_runner=job_runner,
+        policy_gate=policy_gate,
     )
 

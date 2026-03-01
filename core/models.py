@@ -207,3 +207,94 @@ class CompareSummary:
     dimensions: list[dict[str, Any]]
     verdict: str
     model: str
+
+
+@dataclass(slots=True)
+class JobBudget:
+    max_workers: int = 5
+    deadline_ms: int = 60000
+    max_tool_calls: int = 20
+
+
+# --- V2 Provenance ---
+
+
+@dataclass(slots=True)
+class Job:
+    job_id: str
+    job_type: str
+    status: str = "queued"
+    input_json: str = "{}"
+    output_json: str | None = None
+    error_class: str | None = None
+    error_message: str | None = None
+    created_at: datetime | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class ProvenanceEvent:
+    event_id: str
+    run_id: str
+    event_type: str
+    actor: str = "system"
+    entity_refs: dict[str, Any] = field(default_factory=dict)
+    payload: dict[str, Any] = field(default_factory=dict)
+    ts: datetime | None = None
+
+
+@dataclass(slots=True)
+class ToolCall:
+    tool_call_id: str
+    run_id: str
+    tool_name: str
+    tool_version: str = "v1"
+    request_json: str = "{}"
+    status: str = "pending"
+    output_ref: str | None = None
+    error_message: str | None = None
+    idempotency_key: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class Schedule:
+    schedule_id: str
+    schedule_type: str          # "sniffer_pack" | "source_run"
+    ref_id: str                 # pack_id or source_id
+    interval_seconds: int = 3600
+    cron_expr: str | None = None
+    next_run_at: datetime | None = None
+    last_run_at: datetime | None = None
+    enabled: bool = True
+    locked_until: datetime | None = None
+    created_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class PendingConfirm:
+    confirm_id: str
+    job_id: str | None = None
+    action_type: str = ""
+    payload_json: str = "{}"
+    status: str = "pending"
+    created_at: datetime | None = None
+    resolved_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class SnifferRunLog:
+    run_id: str
+    job_id: str | None = None
+    query_json: str = "{}"
+    pack_id: str | None = None
+    status: str = "running"
+    result_count: int = 0
+    channels_used: list[str] = field(default_factory=list)
+    error_message: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)

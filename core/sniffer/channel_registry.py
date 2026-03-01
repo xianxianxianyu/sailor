@@ -7,7 +7,7 @@ from typing import Protocol, runtime_checkable
 
 from core.models import SniffQuery, SniffResult
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 
 @runtime_checkable

@@ -13,7 +13,7 @@ from backend.app.schemas import (
     RunAnalysisOut,
 )
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["analyses"])
 
@@ -78,13 +78,13 @@ def mount_analysis_routes(container: AppContainer) -> APIRouter:
     def run_analysis(payload: RunAnalysisIn | None = None) -> RunAnalysisOut:
         resource_ids = payload.resource_ids if payload else None
         if resource_ids:
-            logger.info(f"🔍 开始分析文章: {len(resource_ids)} 篇")
+            logger.info("开始分析文章: %d 篇", len(resource_ids))
         else:
-            logger.info("🔍 开始分析待处理文章...")
+            logger.info("开始分析待处理文章...")
         
         analyzed, failed = container.article_agent.analyze_pending(resource_ids)
         
-        logger.info(f"✅ 文章分析完成: 成功 {analyzed}, 失败 {failed}")
+        logger.info("文章分析完成: 成功 %d, 失败 %d", analyzed, failed)
         return RunAnalysisOut(analyzed_count=analyzed, failed_count=failed)
 
     @router.get("/resources/{resource_id}/analysis", response_model=ResourceAnalysisOut)
@@ -112,7 +112,7 @@ def mount_analysis_routes(container: AppContainer) -> APIRouter:
     @router.get("/analyses/status", response_model=AnalysisStatusOut)
     def get_analysis_status() -> AnalysisStatusOut:
         summary = container.analysis_repo.get_status_summary()
-        logger.info(f"📊 分析状态: pending={summary.get('pending', 0)}, completed={summary.get('completed', 0)}, failed={summary.get('failed', 0)}")
+        logger.info("分析状态: pending=%d, completed=%d, failed=%d", summary.get('pending', 0), summary.get('completed', 0), summary.get('failed', 0))
         return AnalysisStatusOut.model_validate(summary)
 
     return router

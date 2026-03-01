@@ -4,7 +4,7 @@ import hashlib
 import logging
 from datetime import datetime
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 from core.models import RSSFeed
 from core.storage.db import Database

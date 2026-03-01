@@ -836,6 +836,114 @@
       "enabled": true,
       "poll_minutes": 30,
       "tags": []
+    },
+    {
+      "source_id": "feed_6edd8ddaa517",
+      "name": "Lobsters",
+      "xml_url": "https://lobste.rs/rss",
+      "html_url": "https://lobste.rs",
+      "enabled": true,
+      "poll_minutes": 60,
+      "tags": ["tech", "engineering"]
+    },
+    {
+      "source_id": "feed_1a1389305b5f",
+      "name": "Slashdot",
+      "xml_url": "https://rss.slashdot.org/Slashdot/slashdotMain",
+      "html_url": "https://slashdot.org",
+      "enabled": true,
+      "poll_minutes": 60,
+      "tags": ["tech", "news"]
+    },
+    {
+      "source_id": "feed_88c0d440d2bd",
+      "name": "Reddit r/programming",
+      "xml_url": "https://www.reddit.com/r/programming/.rss",
+      "html_url": "https://www.reddit.com/r/programming",
+      "enabled": true,
+      "poll_minutes": 60,
+      "tags": ["programming", "discussion"]
+    },
+    {
+      "source_id": "feed_0a9dc2c439c0",
+      "name": "DEV.to",
+      "xml_url": "https://dev.to/feed",
+      "html_url": "https://dev.to",
+      "enabled": true,
+      "poll_minutes": 60,
+      "tags": ["web", "frontend"]
+    },
+    {
+      "source_id": "feed_e87c2d7e7466",
+      "name": "HackerNoon",
+      "xml_url": "https://hackernoon.com/feed",
+      "html_url": "https://hackernoon.com",
+      "enabled": true,
+      "poll_minutes": 60,
+      "tags": ["tech", "startup"]
+    },
+    {
+      "source_id": "feed_d99751bf47de",
+      "name": "InfoQ",
+      "xml_url": "https://www.infoq.com/rss/",
+      "html_url": "https://www.infoq.com",
+      "enabled": true,
+      "poll_minutes": 60,
+      "tags": ["architecture", "engineering"]
+    },
+    {
+      "source_id": "feed_851adb151e07",
+      "name": "Techmeme",
+      "xml_url": "https://www.techmeme.com/feed.xml",
+      "html_url": "https://www.techmeme.com",
+      "enabled": true,
+      "poll_minutes": 60,
+      "tags": ["tech", "news"]
+    },
+    {
+      "source_id": "feed_71c839482108",
+      "name": "LWN.net",
+      "xml_url": "https://lwn.net/headlines/rss",
+      "html_url": "https://lwn.net",
+      "enabled": true,
+      "poll_minutes": 120,
+      "tags": ["linux", "oss"]
+    },
+    {
+      "source_id": "feed_d129c23401be",
+      "name": "Ars Technica",
+      "xml_url": "https://feeds.arstechnica.com/arstechnica/index",
+      "html_url": "https://arstechnica.com",
+      "enabled": true,
+      "poll_minutes": 60,
+      "tags": ["tech", "media"]
+    },
+    {
+      "source_id": "feed_0173256d72f2",
+      "name": "Habr",
+      "xml_url": "https://habr.com/en/rss/all/all/",
+      "html_url": "https://habr.com/en",
+      "enabled": true,
+      "poll_minutes": 120,
+      "tags": ["engineering", "community"]
+    },
+    {
+      "source_id": "feed_07a27718cdec",
+      "name": "JavaScript Weekly",
+      "xml_url": "https://javascriptweekly.com/rss",
+      "html_url": "https://javascriptweekly.com",
+      "enabled": true,
+      "poll_minutes": 360,
+      "tags": ["javascript", "weekly"]
+    },
+    {
+      "source_id": "feed_df44c1ab918b",
+      "name": "arXiv cs.LG",
+      "xml_url": "https://arxiv.org/rss/cs.LG",
+      "html_url": "https://arxiv.org/list/cs.LG",
+      "enabled": true,
+      "poll_minutes": 360,
+      "tags": ["ml", "papers"]
     }
   ]
 }

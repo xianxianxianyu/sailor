@@ -6,6 +6,10 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from core.logging_config import setup_logging
+
+setup_logging()
+
 from backend.app.container import build_container
 from backend.app.routers.knowledge_bases import mount_knowledge_base_routes
 from backend.app.routers.resources import mount_resources_routes
@@ -19,23 +23,9 @@ from backend.app.routers.trending import mount_trending_routes
 from backend.app.routers.logs import mount_log_routes
 from backend.app.routers.settings import mount_settings_routes
 from backend.app.routers.sniffer import mount_sniffer_routes
+from backend.app.routers.confirms import mount_confirm_routes
 
-# 配置日志
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-    datefmt="%H:%M:%S",
-)
-
-# 强制安装日志处理器到 root logger（在 basicConfig 之后）
-from backend.app.routers.logs import LogHandler, add_log
-_root = logging.getLogger()
-if not any(isinstance(h, LogHandler) for h in _root.handlers):
-    _h = LogHandler()
-    _h.setFormatter(logging.Formatter("%(name)s: %(message)s"))
-    _root.addHandler(_h)
-
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 container = build_container(PROJECT_ROOT)
@@ -62,13 +52,14 @@ app.include_router(mount_trending_routes(container))
 app.include_router(mount_log_routes(container))
 app.include_router(mount_settings_routes(container))
 app.include_router(mount_sniffer_routes(container))
+app.include_router(mount_confirm_routes(container))
 
 
 @app.on_event("startup")
 async def startup_event():
     logger.info("=" * 50)
-    logger.info("🚀 Sailor Backend 启动")
-    logger.info(f"   项目路径: {PROJECT_ROOT}")
+    logger.info("Sailor Backend started")
+    logger.info(f"   project root: {PROJECT_ROOT}")
     logger.info("=" * 50)
 
 

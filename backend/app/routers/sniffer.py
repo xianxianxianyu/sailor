@@ -17,6 +17,7 @@ from backend.app.schemas import (
     ConvertSourceIn,
     CreateSnifferPackIn,
     ImportPackIn,
+    ProvenanceEventOut,
     ResourceAnalysisOut,
     SaveToKBIn,
     SearchResponseOut,
@@ -24,9 +25,10 @@ from backend.app.schemas import (
     SniffQueryIn,
     SniffResultOut,
     SnifferPackFullOut,
+    SnifferRunOut,
     UpdatePackScheduleIn,
 )
-from core.models import Resource, SniffQuery, SourceRecord
+from core.models import Job, ProvenanceEvent, Resource, SniffQuery, SourceRecord
 
 router = APIRouter(prefix="/sniffer", tags=["sniffer"])
 
@@ -51,16 +53,28 @@ def _result_to_out(r) -> SniffResultOut:
 def mount_sniffer_routes(container: AppContainer) -> APIRouter:
     @router.post("/search", response_model=SearchResponseOut)
     def search(payload: SniffQueryIn) -> SearchResponseOut:
-        query = SniffQuery(
-            keyword=payload.keyword,
-            channels=payload.channels,
-            time_range=payload.time_range,
-            sort_by=payload.sort_by,
-            max_results_per_channel=payload.max_results_per_channel,
-        )
-        results = container.channel_registry.search(query)
-        container.sniffer_repo.save_results(results)
-        summary = container.summary_engine.summarize(results, payload.keyword)
+        input_data = {
+            "keyword": payload.keyword,
+            "channels": payload.channels,
+            "time_range": payload.time_range,
+            "sort_by": payload.sort_by,
+            "max_results_per_channel": payload.max_results_per_channel,
+        }
+        if payload.budget is not None:
+            input_data["budget"] = payload.budget.model_dump()
+        job = container.job_repo.create_job(Job(
+            job_id=uuid.uuid4().hex[:12],
+            job_type="sniffer_search",
+            input_json=json.dumps(input_data),
+        ))
+        result_job = container.job_runner.run(job.job_id)
+        if result_job.status == "failed":
+            raise HTTPException(status_code=500, detail=result_job.error_message or "Search failed")
+
+        output = json.loads(result_job.output_json or "{}")
+        result_ids = output.get("result_ids", [])
+        summary = output.get("summary", {})
+        results = container.sniffer_repo.get_results_by_ids(result_ids) if result_ids else []
         return SearchResponseOut(
             results=[_result_to_out(r) for r in results],
             summary=SearchSummaryOut(**summary),
@@ -71,6 +85,40 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
         channels = container.channel_registry.list_channels()
         return [ChannelInfoOut(**ch) for ch in channels]
 
+    # --- Sniffer Run History ---
+
+    @router.get("/runs", response_model=list[SnifferRunOut])
+    def list_sniffer_runs(limit: int = 50):
+        runs = container.job_repo.list_sniffer_runs(limit=max(1, min(limit, 200)))
+        return [SnifferRunOut(
+            run_id=r.run_id, job_id=r.job_id, query_json=r.query_json,
+            pack_id=r.pack_id, status=r.status, result_count=r.result_count,
+            channels_used=r.channels_used, error_message=r.error_message,
+            started_at=r.started_at, finished_at=r.finished_at,
+            metadata=r.metadata,
+        ) for r in runs]
+
+    @router.get("/runs/{run_id}")
+    def get_sniffer_run(run_id: str):
+        run = container.job_repo.get_sniffer_run(run_id)
+        if not run:
+            raise HTTPException(status_code=404, detail="Run not found")
+        # Events are stored under job_id (RunContext.run_id), not sniffer run_id
+        events = container.job_repo.list_events(run.job_id)
+        return {
+            "run": SnifferRunOut(
+                run_id=run.run_id, job_id=run.job_id, query_json=run.query_json,
+                pack_id=run.pack_id, status=run.status, result_count=run.result_count,
+                channels_used=run.channels_used, error_message=run.error_message,
+                started_at=run.started_at, finished_at=run.finished_at,
+                metadata=run.metadata,
+            ),
+            "events": [ProvenanceEventOut(
+                event_id=e.event_id, run_id=e.run_id, event_type=e.event_type,
+                actor=e.actor, entity_refs=e.entity_refs, payload=e.payload, ts=e.ts,
+            ) for e in events],
+        }
+
     # --- P1-1: Deep analyze ---
 
     @router.post("/results/{result_id}/deep-analyze", response_model=ResourceAnalysisOut)
@@ -78,9 +126,16 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
         sr = container.sniffer_repo.get_result(result_id)
         if not sr:
             raise HTTPException(status_code=404, detail="Result not found")
+        container.job_repo.append_event(ProvenanceEvent(
+            event_id=uuid.uuid4().hex[:12], run_id=result_id,
+            event_type="DeepAnalyzeStarted", actor="user",
+            entity_refs={"result_id": result_id},
+        ))
+        from core.pipeline.stages import canonicalize_url, make_resource_id
+        canonical = canonicalize_url(sr.url)
         resource = Resource(
-            resource_id=uuid.uuid4().hex[:12],
-            canonical_url=sr.url,
+            resource_id=make_resource_id(canonical),
+            canonical_url=canonical,
             source=f"sniffer:{sr.channel}",
             provenance={"sniffer_result_id": sr.result_id, "channel": sr.channel},
             title=sr.title,
@@ -92,6 +147,11 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
         )
         container.resource_repo.upsert(resource)
         analysis = container.article_agent.analyze(resource)
+        container.job_repo.append_event(ProvenanceEvent(
+            event_id=uuid.uuid4().hex[:12], run_id=result_id,
+            event_type="DeepAnalyzeFinished", actor="system",
+            entity_refs={"result_id": result_id, "resource_id": analysis.resource_id},
+        ))
         return ResourceAnalysisOut(
             resource_id=analysis.resource_id,
             summary=analysis.summary,
@@ -118,9 +178,11 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
         kb = container.kb_repo.get_kb(payload.kb_id)
         if not kb:
             raise HTTPException(status_code=404, detail="Knowledge base not found")
+        from core.pipeline.stages import canonicalize_url, make_resource_id
+        canonical = canonicalize_url(sr.url)
         resource = Resource(
-            resource_id=uuid.uuid4().hex[:12],
-            canonical_url=sr.url,
+            resource_id=make_resource_id(canonical),
+            canonical_url=canonical,
             source=f"sniffer:{sr.channel}",
             provenance={"sniffer_result_id": sr.result_id, "channel": sr.channel},
             title=sr.title,
@@ -132,6 +194,11 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
         )
         container.resource_repo.upsert(resource)
         container.kb_repo.add_item(payload.kb_id, resource.resource_id)
+        container.job_repo.append_event(ProvenanceEvent(
+            event_id=uuid.uuid4().hex[:12], run_id=result_id,
+            event_type="SavedToKB", actor="user",
+            entity_refs={"result_id": result_id, "resource_id": resource.resource_id, "kb_id": payload.kb_id},
+        ))
         return {"saved": True, "resource_id": resource.resource_id, "kb_id": payload.kb_id}
 
     # --- P1-3: Convert to source ---
@@ -150,6 +217,11 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
             enabled=True,
         )
         container.source_repo.upsert_source(source)
+        container.job_repo.append_event(ProvenanceEvent(
+            event_id=uuid.uuid4().hex[:12], run_id=result_id,
+            event_type="ConvertedToSource", actor="user",
+            entity_refs={"result_id": result_id, "source_id": source.source_id},
+        ))
         return {"converted": True, "source_id": source.source_id}
 
     # --- P1-2: Compare ---
@@ -203,12 +275,32 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
 
     @router.post("/packs/{pack_id}/run", response_model=SearchResponseOut)
     def run_pack(pack_id: str):
-        try:
-            results = container.pack_manager.run_pack(pack_id)
-        except ValueError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
-        keyword = results[0].query_keyword if results else ""
-        summary = container.summary_engine.summarize(results, keyword)
+        pack = container.sniffer_repo.get_pack(pack_id)
+        if not pack:
+            raise HTTPException(status_code=404, detail="Pack not found")
+
+        q_data = json.loads(pack.query_json)
+        input_data = {
+            "keyword": q_data.get("keyword", ""),
+            "channels": q_data.get("channels", []),
+            "time_range": q_data.get("time_range", "all"),
+            "sort_by": q_data.get("sort_by", "relevance"),
+            "max_results_per_channel": q_data.get("max_results_per_channel", 10),
+            "pack_id": pack_id,
+        }
+        job = container.job_repo.create_job(Job(
+            job_id=uuid.uuid4().hex[:12],
+            job_type="sniffer_search",
+            input_json=json.dumps(input_data),
+        ))
+        result_job = container.job_runner.run(job.job_id)
+        if result_job.status == "failed":
+            raise HTTPException(status_code=500, detail=result_job.error_message or "Pack run failed")
+
+        output = json.loads(result_job.output_json or "{}")
+        result_ids = output.get("result_ids", [])
+        summary = output.get("summary", {})
+        results = container.sniffer_repo.get_results_by_ids(result_ids) if result_ids else []
         return SearchResponseOut(
             results=[_result_to_out(r) for r in results],
             summary=SearchSummaryOut(**summary),
@@ -228,8 +320,13 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
         pack = container.sniffer_repo.update_pack_schedule(pack_id, payload.schedule_cron)
         if not pack:
             raise HTTPException(status_code=404, detail="Pack not found")
+        # Sync to unified scheduler
         if hasattr(container, "scheduler") and container.scheduler:
-            container.scheduler.reschedule(pack)
+            from core.runner.scheduler import _INTERVAL_MAP
+            interval = _INTERVAL_MAP.get(payload.schedule_cron or "") if payload.schedule_cron else None
+            container.scheduler.reschedule(
+                "sniffer_pack", pack_id, interval, enabled=bool(payload.schedule_cron),
+            )
         return SnifferPackFullOut(**asdict(pack))
 
     # --- P2-2: Channel health ---

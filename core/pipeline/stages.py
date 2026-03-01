@@ -105,6 +105,11 @@ def strip_html(value: str) -> str:
     return unescape(text)
 
 
+def make_resource_id(canonical_url: str) -> str:
+    digest = hashlib.sha1(canonical_url.encode("utf-8")).hexdigest()
+    return f"res_{digest[:12]}"
+
+
 def summarize(text: str, max_len: int = 220) -> str:
     if len(text) <= max_len:
         return text

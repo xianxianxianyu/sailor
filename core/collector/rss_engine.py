@@ -9,7 +9,7 @@ from pathlib import Path
 from core.collector.base import Collector
 from core.models import RawEntry
 
-logger = logging.getLogger("sailor")
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
