@@ -75,7 +75,7 @@ export default function SnifferSearchBar({ onSearch, loading, onSavePack }: Prop
               max_results_per_channel: 10,
             })}
           >
-            保存为嗅探包
+            保存为搜索包
           </button>
         )}
       </div>

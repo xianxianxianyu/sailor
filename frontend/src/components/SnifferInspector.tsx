@@ -108,7 +108,7 @@ export default function SnifferInspector({
       {compareSummary && !compareLoading && (
         <div className="sniffer-inspector-compare">
           <div className="sniffer-compare-dims">
-            {compareSummary.dimensions.map((dim, i) => (
+            {Array.isArray(compareSummary.dimensions) ? compareSummary.dimensions.map((dim, i) => (
               <div key={i} className="sniffer-compare-dim">
                 <h4>{dim.name}</h4>
                 <table className="sniffer-compare-table">
@@ -126,7 +126,9 @@ export default function SnifferInspector({
                   </tbody>
                 </table>
               </div>
-            ))}
+            )) : (
+              <p className="sniffer-error">对比结果格式异常，请重试</p>
+            )}
           </div>
           <div className="sniffer-compare-verdict">
             <h4>综合结论</h4>

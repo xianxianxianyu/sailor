@@ -301,16 +301,80 @@ class Database:
                 ON schedules(enabled, next_run_at);
 
                 CREATE TABLE IF NOT EXISTS pending_confirms (
-                    confirm_id   TEXT PRIMARY KEY,
-                    job_id       TEXT,
-                    action_type  TEXT NOT NULL,
-                    payload_json TEXT NOT NULL DEFAULT '{}',
-                    status       TEXT NOT NULL DEFAULT 'pending',
-                    created_at   TEXT DEFAULT CURRENT_TIMESTAMP,
-                    resolved_at  TEXT,
+                    confirm_id    TEXT PRIMARY KEY,
+                    job_id        TEXT,
+                    action_type   TEXT NOT NULL,
+                    payload_json  TEXT NOT NULL DEFAULT '{}',
+                    status        TEXT NOT NULL DEFAULT 'pending',
+                    created_at    TEXT DEFAULT CURRENT_TIMESTAMP,
+                    resolved_at   TEXT,
+                    metadata_json TEXT NOT NULL DEFAULT '{}',
                     FOREIGN KEY(job_id) REFERENCES jobs(job_id)
                 );
                 CREATE INDEX IF NOT EXISTS idx_pending_confirms_status
                 ON pending_confirms(status);
+
+                CREATE TABLE IF NOT EXISTS kb_graph_edges (
+                    kb_id          TEXT NOT NULL,
+                    node_a_id      TEXT NOT NULL,
+                    node_b_id      TEXT NOT NULL,
+                    status         TEXT NOT NULL DEFAULT 'active',
+                    reason         TEXT NOT NULL DEFAULT '',
+                    reason_type    TEXT,
+                    evidence_json  TEXT NOT NULL DEFAULT '[]',
+                    created_by     TEXT NOT NULL DEFAULT 'user',
+                    created_run_id TEXT,
+                    frozen         INTEGER NOT NULL DEFAULT 0,
+                    created_at     TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at     TEXT DEFAULT CURRENT_TIMESTAMP,
+                    deleted_at     TEXT,
+                    deleted_by     TEXT,
+                    PRIMARY KEY (kb_id, node_a_id, node_b_id),
+                    FOREIGN KEY(kb_id) REFERENCES knowledge_bases(kb_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_kge_kb_node_a ON kb_graph_edges(kb_id, node_a_id);
+                CREATE INDEX IF NOT EXISTS idx_kge_kb_node_b ON kb_graph_edges(kb_id, node_b_id);
+                CREATE INDEX IF NOT EXISTS idx_kge_kb_status  ON kb_graph_edges(kb_id, status);
                 """
             )
+
+            self._migrate(conn)
+
+    def _migrate(self, conn: sqlite3.Connection) -> None:
+
+        self._ensure_columns(
+            conn,
+            table="sniffer_packs",
+            columns={
+                "schedule_cron": "TEXT",
+                "last_run_at": "TEXT",
+                "next_run_at": "TEXT",
+            },
+        )
+
+        self._ensure_columns(
+            conn,
+            table="pending_confirms",
+            columns={
+                "metadata_json": "TEXT NOT NULL DEFAULT '{}'",
+            },
+        )
+
+        self._ensure_columns(
+            conn,
+            table="kb_graph_edges",
+            columns={
+                "deleted_run_id": "TEXT",
+            },
+        )
+
+    @staticmethod
+    def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+        rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+        if not rows:
+            return
+
+        existing = {row["name"] for row in rows}
+        for col_name, col_type in columns.items():
+            if col_name not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")

@@ -1,13 +1,12 @@
-export type ViewId = "trending" | "tags" | "kb" | "feeds" | "sniffer";
+export type ViewId = "discover" | "feeds" | "kb" | "follow";
 
 type NavItem = { id: ViewId; icon: string; label: string };
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "trending", icon: "📊", label: "趋势" },
-  { id: "tags", icon: "🏷️", label: "标签" },
-  { id: "kb", icon: "📚", label: "知识库" },
+  { id: "discover", icon: "🔍", label: "发现" },
   { id: "feeds", icon: "📡", label: "订阅源" },
-  { id: "sniffer", icon: "🔍", label: "嗅探" },
+  { id: "kb", icon: "📚", label: "知识库" },
+  { id: "follow", icon: "📬", label: "追踪" },
 ];
 
 type Props = {

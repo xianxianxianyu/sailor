@@ -13,11 +13,37 @@ SIDE_EFFECT_TOOLS = frozenset({
     "run_source", "delete_source",
 })
 
+TOOL_TO_JOB_TYPE: dict[str, str] = {
+    "propose_source": "upsert_source",
+    "import_feeds": "import_feeds",
+    "upsert_source": "upsert_source",
+    "run_source": "source_run",
+    "delete_source": "delete_source",
+}
+
+_DISPLAY_KEYS = (
+    "name",
+    "endpoint",
+    "source_id",
+    "source_type",
+    "schedule_minutes",
+    "enabled",
+)
+
 
 @dataclass
 class PolicyDecision:
-    action: str       # "allow" | "deny" | "require_confirm"
+    action: str
     reason: str = ""
+
+
+def _build_display(action_type: str, payload: dict) -> dict:
+    display = {"action": action_type}
+    for key in _DISPLAY_KEYS:
+        value = payload.get(key)
+        if value is not None and value != "":
+            display[key] = value
+    return display
 
 
 class PolicyGate:
@@ -45,10 +71,17 @@ class PolicyGate:
 
     def create_pending(self, action_type: str, payload: dict,
                        job_id: str | None = None) -> PendingConfirm:
+        job_type = TOOL_TO_JOB_TYPE.get(action_type, action_type)
+        structured_payload = {
+            "job_type": job_type,
+            "input_json": payload,
+            "action_type": action_type,
+            "display": _build_display(action_type, payload),
+        }
         pc = PendingConfirm(
             confirm_id=uuid.uuid4().hex[:12],
             job_id=job_id,
             action_type=action_type,
-            payload_json=json.dumps(payload),
+            payload_json=json.dumps(structured_payload),
         )
         return self.job_repo.create_confirm(pc)

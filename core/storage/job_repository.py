@@ -1,11 +1,40 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from core.models import Job, PendingConfirm, ProvenanceEvent, Schedule, SnifferRunLog, ToolCall
+from core.models import Job, PendingConfirm, ProvenanceEvent, RawCapture, Schedule, SnifferRunLog, ToolCall
 from core.storage.db import Database
+
+
+def generate_deterministic_job_id(
+    job_type: str,
+    idempotency_key: str,
+) -> str:
+    """Generate deterministic job_id from job_type and idempotency_key
+
+    Args:
+        job_type: Job type (e.g., "board_snapshot", "research_run")
+        idempotency_key: Idempotency key following format:
+            v1:{job_type}:{entity_id}:{window_since}:{window_until}:{params_hash}
+
+    Returns:
+        job_id: Deterministic job ID (job_{12-char-hex})
+
+    Examples:
+        >>> generate_deterministic_job_id(
+        ...     "board_snapshot",
+        ...     "v1:board_snapshot:board_123:2024-01-01:2024-01-02:abc"
+        ... )
+        'job_a1b2c3d4e5f6'
+    """
+    # Combine job_type and idempotency_key
+    key_str = f"{job_type}:{idempotency_key}"
+    hash_hex = hashlib.sha256(key_str.encode()).hexdigest()[:12]
+
+    return f"job_{hash_hex}"
 
 
 class JobRepository:
@@ -15,6 +44,18 @@ class JobRepository:
     # --- Job CRUD ---
 
     def create_job(self, job: Job) -> Job:
+        """Create a new job (non-idempotent)
+
+        Note: For idempotent job creation, use create_job_idempotent() instead.
+        This method does not check for existing jobs and will fail if job_id
+        already exists (PRIMARY KEY constraint violation).
+
+        Args:
+            job: Job object with job_id already set
+
+        Returns:
+            Created Job object
+        """
         with self.db.connect() as conn:
             conn.execute(
                 """INSERT INTO jobs
@@ -32,6 +73,87 @@ class JobRepository:
             )
             row = conn.execute("SELECT * FROM jobs WHERE job_id = ?", (job.job_id,)).fetchone()
         return _row_to_job(row)
+
+    def create_job_idempotent(
+        self,
+        job_type: str,
+        idempotency_key: str,
+        input_json: dict,
+        metadata: dict | None = None,
+    ) -> tuple[str, bool]:
+        """Create job idempotently using deterministic job_id
+
+        If a job with the same job_type and idempotency_key already exists,
+        returns the existing job_id without creating a new job.
+
+        Args:
+            job_type: Job type
+            idempotency_key: Idempotency key (see format spec in docs/follow.md)
+            input_json: Job input data (will be JSON-serialized)
+            metadata: Optional metadata dict
+
+        Returns:
+            (job_id, is_new): Tuple of job_id and whether it was newly created
+
+        Examples:
+            >>> job_id, is_new = repo.create_job_idempotent(
+            ...     job_type="board_snapshot",
+            ...     idempotency_key="v1:board_snapshot:board_123:2024-01-01:2024-01-02:abc",
+            ...     input_json={"board_id": "board_123"},
+            ... )
+            >>> print(f"Job {job_id}, new={is_new}")
+            Job job_a1b2c3d4e5f6, new=True
+        """
+        job_id = generate_deterministic_job_id(job_type, idempotency_key)
+
+        with self.db.connect() as conn:
+            # Check if job already exists
+            existing = conn.execute(
+                "SELECT job_id, status FROM jobs WHERE job_id = ?",
+                (job_id,)
+            ).fetchone()
+
+            if existing:
+                # Job already exists, return existing job_id
+                return (job_id, False)
+
+            # Job doesn't exist, create new one
+            now = datetime.utcnow().isoformat()
+            conn.execute(
+                """
+                INSERT INTO jobs (
+                    job_id, job_type, status, input_json, metadata_json,
+                    created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    job_id,
+                    job_type,
+                    "queued",
+                    json.dumps(input_json),
+                    json.dumps(metadata) if metadata else "{}",
+                    now,
+                ),
+            )
+
+            return (job_id, True)
+
+    def find_job_by_idempotency_key(
+        self,
+        job_type: str,
+        idempotency_key: str,
+    ) -> Job | None:
+        """Find job by idempotency key
+
+        Args:
+            job_type: Job type
+            idempotency_key: Idempotency key
+
+        Returns:
+            Job object if found, None otherwise
+        """
+        job_id = generate_deterministic_job_id(job_type, idempotency_key)
+        return self.get_job(job_id)
 
     def update_status(
         self, job_id: str, status: str, *,
@@ -57,6 +179,55 @@ class JobRepository:
             row = conn.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
         return _row_to_job(row) if row else None
 
+    def update_metadata(self, job_id: str, metadata: dict) -> None:
+        with self.db.connect() as conn:
+            conn.execute(
+                "UPDATE jobs SET metadata_json = ? WHERE job_id = ?",
+                (json.dumps(metadata), job_id),
+            )
+
+    def merge_metadata(self, job_id: str, metadata: dict) -> Job | None:
+        with self.db.connect() as conn:
+            row = conn.execute("SELECT metadata_json FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
+            if not row:
+                return None
+            current = json.loads(row["metadata_json"] or "{}")
+            current.update(metadata)
+            conn.execute(
+                "UPDATE jobs SET metadata_json = ? WHERE job_id = ?",
+                (json.dumps(current), job_id),
+            )
+            updated = conn.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
+        return _row_to_job(updated) if updated else None
+
+    def cancel_job(self, job_id: str) -> Job | None:
+        now = datetime.utcnow().isoformat()
+        with self.db.connect() as conn:
+            cursor = conn.execute(
+                "UPDATE jobs SET status='cancelled', finished_at=?, error_class=NULL, error_message=NULL, output_json=NULL WHERE job_id=? AND status='queued'",
+                (now, job_id),
+            )
+            if cursor.rowcount == 0:
+                return None
+            row = conn.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
+        return _row_to_job(row) if row else None
+
+    def request_cancel(self, job_id: str) -> Job | None:
+        now = datetime.utcnow().isoformat()
+        with self.db.connect() as conn:
+            row = conn.execute("SELECT status, metadata_json FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
+            if not row or row["status"] != "running":
+                return None
+            metadata = json.loads(row["metadata_json"] or "{}")
+            metadata["cancel_requested"] = True
+            metadata["cancel_requested_at"] = now
+            conn.execute(
+                "UPDATE jobs SET metadata_json = ? WHERE job_id = ? AND status = 'running'",
+                (json.dumps(metadata), job_id),
+            )
+            updated = conn.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
+        return _row_to_job(updated) if updated else None
+
     def get_job(self, job_id: str) -> Job | None:
         with self.db.connect() as conn:
             row = conn.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
@@ -79,6 +250,52 @@ class JobRepository:
         with self.db.connect() as conn:
             rows = conn.execute(query, params).fetchall()
         return [_row_to_job(row) for row in rows]
+
+    def fetch_and_lock_next_queued_job(
+        self,
+        job_types: list[str] | None = None,
+    ) -> "Job | None":
+        """Atomically fetch and lock the next queued job (queued → running).
+        Concurrency-safe: uses a conditional UPDATE as an optimistic lock;
+        rowcount=0 means another worker claimed it first.
+        """
+        now = datetime.utcnow().isoformat()
+        with self.db.connect() as conn:
+            where = "status = 'queued'"
+            params: list = []
+            if job_types:
+                placeholders = ",".join("?" * len(job_types))
+                where += f" AND job_type IN ({placeholders})"
+                params.extend(job_types)
+
+            row = conn.execute(
+                f"SELECT job_id FROM jobs WHERE {where} ORDER BY created_at ASC LIMIT 1",
+                params,
+            ).fetchone()
+            if not row:
+                return None
+
+            job_id = row["job_id"]
+            cursor = conn.execute(
+                "UPDATE jobs SET status='running', started_at=? WHERE job_id=? AND status='queued'",
+                (now, job_id),
+            )
+            if cursor.rowcount == 0:
+                return None  # claimed by another worker
+
+            row = conn.execute("SELECT * FROM jobs WHERE job_id=?", (job_id,)).fetchone()
+        return _row_to_job(row)
+
+    def reset_stale_running_jobs(self, stale_minutes: int = 30) -> int:
+        """Reset jobs stuck in 'running' (e.g. after worker crash) back to 'queued'."""
+        threshold = (datetime.utcnow() - timedelta(minutes=stale_minutes)).isoformat()
+        with self.db.connect() as conn:
+            cursor = conn.execute(
+                "UPDATE jobs SET status='queued', started_at=NULL "
+                "WHERE status='running' AND started_at < ?",
+                (threshold,),
+            )
+        return cursor.rowcount
 
     # --- Provenance Events ---
 
@@ -270,9 +487,17 @@ class JobRepository:
         with self.db.connect() as conn:
             conn.execute(
                 """INSERT INTO pending_confirms
-                   (confirm_id, job_id, action_type, payload_json, status, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (pc.confirm_id, pc.job_id, pc.action_type, pc.payload_json, pc.status, now),
+                   (confirm_id, job_id, action_type, payload_json, status, created_at, metadata_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    pc.confirm_id,
+                    pc.job_id,
+                    pc.action_type,
+                    pc.payload_json,
+                    pc.status,
+                    now,
+                    json.dumps(pc.metadata),
+                ),
             )
             row = conn.execute(
                 "SELECT * FROM pending_confirms WHERE confirm_id = ?", (pc.confirm_id,)
@@ -305,6 +530,59 @@ class JobRepository:
                 "SELECT * FROM pending_confirms WHERE confirm_id = ?", (confirm_id,)
             ).fetchone()
         return _row_to_confirm(row) if row else None
+
+    def update_confirm_metadata(self, confirm_id: str, metadata: dict) -> PendingConfirm | None:
+        current = self.get_confirm(confirm_id)
+        if not current:
+            return None
+        merged = dict(current.metadata)
+        merged.update(metadata)
+        with self.db.connect() as conn:
+            conn.execute(
+                "UPDATE pending_confirms SET metadata_json = ? WHERE confirm_id = ?",
+                (json.dumps(merged), confirm_id),
+            )
+            row = conn.execute(
+                "SELECT * FROM pending_confirms WHERE confirm_id = ?", (confirm_id,)
+            ).fetchone()
+        return _row_to_confirm(row) if row else None
+
+    # --- Raw Captures ---
+
+    def save_raw_capture(
+        self,
+        capture_id: str,
+        tool_call_id: str | None,
+        channel: str,
+        content_ref: str,
+        checksum: str | None,
+        content_type: str = "json",
+    ) -> None:
+        """Save a raw capture record"""
+        now = datetime.utcnow().isoformat()
+        with self.db.connect() as conn:
+            conn.execute(
+                """INSERT INTO raw_captures
+                   (capture_id, tool_call_id, channel, content_ref, checksum, content_type, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (capture_id, tool_call_id, channel, content_ref, checksum, content_type, now),
+            )
+
+    def get_raw_capture(self, capture_id: str) -> RawCapture | None:
+        """Get a raw capture by capture_id"""
+        with self.db.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM raw_captures WHERE capture_id = ?", (capture_id,)
+            ).fetchone()
+        return _row_to_raw_capture(row) if row else None
+
+    def find_raw_capture_by_tool_call(self, tool_call_id: str) -> RawCapture | None:
+        """Find a raw capture by tool_call_id"""
+        with self.db.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM raw_captures WHERE tool_call_id = ?", (tool_call_id,)
+            ).fetchone()
+        return _row_to_raw_capture(row) if row else None
 
 
 # --- Row mappers ---
@@ -377,4 +655,17 @@ def _row_to_confirm(row) -> PendingConfirm:
         status=row["status"],
         created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
         resolved_at=datetime.fromisoformat(row["resolved_at"]) if row["resolved_at"] else None,
+        metadata=json.loads(row["metadata_json"] or "{}"),
+    )
+
+
+def _row_to_raw_capture(row) -> RawCapture:
+    return RawCapture(
+        capture_id=row["capture_id"],
+        tool_call_id=row["tool_call_id"],
+        channel=row["channel"],
+        content_ref=row["content_ref"],
+        checksum=row["checksum"],
+        content_type=row["content_type"] or "json",
+        created_at=datetime.fromisoformat(row["created_at"]) if row["created_at"] else None,
     )

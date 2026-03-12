@@ -233,6 +233,12 @@ class Job:
     finished_at: datetime | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def params(self) -> dict[str, Any]:
+        """Parse input_json as params dict."""
+        import json
+        return json.loads(self.input_json) if self.input_json else {}
+
 
 @dataclass(slots=True)
 class ProvenanceEvent:
@@ -283,6 +289,7 @@ class PendingConfirm:
     status: str = "pending"
     created_at: datetime | None = None
     resolved_at: datetime | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -298,3 +305,15 @@ class SnifferRunLog:
     started_at: datetime | None = None
     finished_at: datetime | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class RawCapture:
+    """Raw capture record for tool call outputs"""
+    capture_id: str
+    tool_call_id: str | None
+    channel: str
+    content_ref: str       # 文件路径
+    checksum: str | None
+    content_type: str = "json"
+    created_at: datetime | None = None

@@ -60,17 +60,6 @@ export type KBReport = {
   created_at: string | null;
 };
 
-export type RSSFeed = {
-  feed_id: string;
-  name: string;
-  xml_url: string;
-  html_url: string | null;
-  enabled: boolean;
-  last_fetched_at: string | null;
-  error_count: number;
-  last_error: string | null;
-};
-
 export type SourceRecord = {
   source_id: string;
   source_type: string;
@@ -105,6 +94,16 @@ export type SourceRun = {
   metadata: Record<string, unknown>;
 };
 
+export type RunSourceOut = {
+  job_id: string;
+  run_id: string;
+  source_id: string;
+  status: string;
+  fetched_count: number;
+  processed_count: number;
+  error_message: string | null;
+};
+
 export type SourceResource = {
   resource_id: string;
   canonical_url: string;
@@ -126,35 +125,6 @@ export type UserTag = {
   color: string;
   weight: number;
   created_at: string | null;
-};
-
-// --- Trending 类型 ---
-
-export type TrendingItem = {
-  resource_id: string;
-  title: string;
-  original_url: string;
-  summary: string;
-  tags: string[];
-  source: string;
-};
-
-export type TrendingGroup = {
-  tag_name: string;
-  tag_color: string;
-  items: TrendingItem[];
-};
-
-export type TrendingReport = {
-  groups: TrendingGroup[];
-  total_resources: number;
-  total_tags: number;
-};
-
-export type PipelineResult = {
-  collected: number;
-  processed: number;
-  tagged: number;
 };
 
 // --- KB Item 类型 ---
@@ -213,8 +183,33 @@ export type SearchSummary = {
 };
 
 export type SearchResponse = {
+  job_id?: string | null;
+  status?: string | null;
+  error_message?: string | null;
   results: SniffResult[];
   summary: SearchSummary;
+};
+
+// --- Jobs (V2 Provenance) ---
+
+export type JobOut = {
+  job_id: string;
+  job_type: string;
+  status: string;
+  input_json: string;
+  output_json: string | null;
+  error_class: string | null;
+  error_message: string | null;
+  created_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  metadata: Record<string, unknown>;
+};
+
+export type CancelJobOut = {
+  job_id: string;
+  status: string;
+  cancel_requested: boolean;
 };
 
 export type ChannelInfo = {
@@ -252,4 +247,133 @@ export type ChannelHealth = {
   status: string;
   message: string;
   latency_ms: number | null;
+};
+
+// --- Follow 类型 ---
+
+export interface Follow {
+  follow_id: string;
+  name: string;
+  description?: string;
+  board_ids: string[];
+  research_program_ids: string[];
+  window_policy: string;
+  schedule_minutes?: number;
+  enabled: boolean;
+  last_run_at?: string;
+  error_count: number;
+  last_error?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IssueItem {
+  item_key: string;
+  title?: string;
+  url?: string;
+  meta?: Record<string, unknown>;
+}
+
+export interface IssueSection {
+  section_type: string;
+  source_id: string;
+  source_name?: string;
+  new_items: IssueItem[];
+  removed_items: IssueItem[];
+  kept_items: IssueItem[];
+}
+
+export interface IssueSnapshot {
+  issue_id: string;
+  follow_id: string;
+  window: { since?: string; until?: string };
+  sections: IssueSection[];
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+// --- Board 类型 ---
+
+export interface Board {
+  board_id: string;
+  provider: string;
+  kind: string;
+  name: string;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  last_run_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BoardSnapshotItem {
+  snapshot_id: string;
+  item_key: string;
+  source_order: number;
+  title?: string;
+  url?: string;
+  meta?: Record<string, unknown>;
+}
+
+export interface BoardSnapshot {
+  snapshot_id: string;
+  board_id: string;
+  captured_at: string;
+  item_count: number;
+}
+
+// --- Research Program 类型 ---
+
+export interface ResearchProgram {
+  program_id: string;
+  name: string;
+  description: string;
+  source_ids: string[];
+  filters?: Record<string, unknown>;
+  enabled: boolean;
+  last_run_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// --- KG Graph 类型 ---
+
+export type KGNode = {
+  id: string;
+  title: string;
+  summary: string;
+  url: string;
+  topics_json: string;
+  added_at: string;
+};
+
+export type KGEdge = {
+  source: string;
+  target: string;
+  node_a_id: string;
+  node_b_id: string;
+  reason: string;
+  reason_type: string | null;
+  status: "active" | "deleted";
+  frozen: number;
+  created_by: string;
+  created_at: string;
+};
+
+export type KGGraph = {
+  nodes: KGNode[];
+  edges: KGEdge[];
+};
+
+export type KGNeighbor = {
+  node: KGNode;
+  edge: KGEdge;
+};
+
+export type KGNodeDetail = {
+  node: KGNode;
+  neighbors: KGNeighbor[];
+  total_neighbors?: number;
+  page?: number;
+  page_size?: number;
 };

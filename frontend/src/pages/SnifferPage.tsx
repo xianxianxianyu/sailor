@@ -1,7 +1,8 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import useSnifferWorkspace from "../hooks/useSnifferWorkspace";
 import useToast from "../hooks/useToast";
 import { createSnifferPack } from "../api";
+import { showJobError } from "../jobErrors";
 import SnifferSearchBar from "../components/SnifferSearchBar";
 import SnifferResultCard from "../components/SnifferResultCard";
 import SnifferInspector from "../components/SnifferInspector";
@@ -27,9 +28,9 @@ export default function SnifferPage() {
   }) {
     try {
       await createSnifferPack({ name: query.keyword, query });
-      toast.success("已保存为嗅探包");
+      toast.success("已保存为搜索包");
     } catch {
-      toast.error("保存嗅探包失败");
+      toast.error("保存搜索包失败");
     }
   }
 
@@ -50,7 +51,7 @@ export default function SnifferPage() {
   return (
     <div className="page-content">
       <div className="sniffer-page-header">
-        <h2>资源嗅探</h2>
+        <h2>Search</h2>
         <button className="sniffer-action-btn" onClick={() => setToolsOpen(true)}>工具</button>
       </div>
       <SnifferSearchBar onSearch={onSearch} loading={ws.loading} onSavePack={onSavePack} />
@@ -130,11 +131,16 @@ export default function SnifferPage() {
         </div>
       )}
 
-      <SnifferToolsDrawer open={toolsOpen} onClose={() => setToolsOpen(false)} onPackRun={ws.handlePackRun} />
+      <SnifferToolsDrawer
+        open={toolsOpen}
+        onClose={() => setToolsOpen(false)}
+        onPackRun={ws.handlePackRun}
+        onPackRunError={(e: unknown) => showJobError(toast, e, "搜索包运行失败")}
+      />
 
       <KBPickerModal
         open={ws.kbPickerOpen}
-        resourceTitle={ws.kbPickerResultId}
+        resourceTitle={ws.kbPickerTitle}
         knownKbIds={[]}
         knowledgeBases={ws.kbs}
         submitting={ws.kbSubmitting}
@@ -146,3 +152,6 @@ export default function SnifferPage() {
     </div>
   );
 }
+
+
+

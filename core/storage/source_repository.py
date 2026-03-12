@@ -200,6 +200,17 @@ class SourceRepository:
                     """,
                     (finished_at.isoformat(), source_id),
                 )
+            elif status == "cancelled":
+                conn.execute(
+                    """
+                    UPDATE source_registry
+                    SET last_run_at = ?,
+                        last_error = NULL,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE source_id = ?
+                    """,
+                    (finished_at.isoformat(), source_id),
+                )
             else:
                 conn.execute(
                     """

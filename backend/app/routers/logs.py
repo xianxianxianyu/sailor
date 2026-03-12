@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from backend.app.container import AppContainer
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/logs", tags=["logs"])
+router = APIRouter(prefix="/logs", tags=["system"])
 
 # Monotonically increasing sequence counter + deque for bounded log storage
 _seq_lock = threading.Lock()

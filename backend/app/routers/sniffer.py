@@ -6,31 +6,34 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Response
 
 from backend.app.container import AppContainer
 from backend.app.schemas import (
-    ChannelHealthOut,
-    ChannelInfoOut,
-    CompareIn,
-    CompareSummaryOut,
-    ConvertSourceIn,
-    CreateSnifferPackIn,
-    ImportPackIn,
-    ProvenanceEventOut,
-    ResourceAnalysisOut,
-    SaveToKBIn,
-    SearchResponseOut,
-    SearchSummaryOut,
-    SniffQueryIn,
-    SniffResultOut,
-    SnifferPackFullOut,
+  ChannelHealthOut,
+  ChannelInfoOut,
+  CompareIn,
+  CompareSummaryOut,
+  ConvertSourceIn,
+  ConvertSourceOut,
+  CreateSnifferPackIn,
+  ImportPackIn,
+  JobAcceptedOut,
+  ProvenanceEventOut,
+  ResourceAnalysisOut,
+  SaveToKBIn,
+  SaveToKBOut,
+  SearchResponseOut,
+  SearchSummaryOut,
+  SniffQueryIn,
+  SniffResultOut,
+  SnifferPackFullOut,
     SnifferRunOut,
     UpdatePackScheduleIn,
 )
 from core.models import Job, ProvenanceEvent, Resource, SniffQuery, SourceRecord
 
-router = APIRouter(prefix="/sniffer", tags=["sniffer"])
+router = APIRouter(prefix="/sniffer", tags=["system"])
 
 
 def _result_to_out(r) -> SniffResultOut:
@@ -52,7 +55,13 @@ def _result_to_out(r) -> SniffResultOut:
 
 def mount_sniffer_routes(container: AppContainer) -> APIRouter:
     @router.post("/search", response_model=SearchResponseOut)
-    def search(payload: SniffQueryIn) -> SearchResponseOut:
+    def search(
+        payload: SniffQueryIn,
+        response: Response,
+        wait: bool = Query(True),
+        timeout: int = Query(60),
+    ) -> SearchResponseOut:
+        from backend.app.utils import wait_for_job
         input_data = {
             "keyword": payload.keyword,
             "channels": payload.channels,
@@ -67,17 +76,117 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
             job_type="sniffer_search",
             input_json=json.dumps(input_data),
         ))
-        result_job = container.job_runner.run(job.job_id)
-        if result_job.status == "failed":
-            raise HTTPException(status_code=500, detail=result_job.error_message or "Search failed")
+
+        if not wait:
+            return SearchResponseOut(job_id=job.job_id, status=job.status, results=[], summary=SearchSummaryOut(
+                total=0, keyword=payload.keyword, channel_distribution={},
+                keyword_clusters=[], time_distribution={}, top_by_engagement=[],
+            ))
+
+        result_job = wait_for_job(container.job_repo, job.job_id, timeout)
+        if result_job.status in ("queued", "running"):
+            response.status_code = 202
+            return SearchResponseOut(
+                job_id=result_job.job_id,
+                status=result_job.status,
+                results=[],
+                summary=SearchSummaryOut(
+                    total=0,
+                    keyword=payload.keyword,
+                    channel_distribution={},
+                    keyword_clusters=[],
+                    time_distribution={},
+                    top_by_engagement=[],
+                ),
+            )
+        if result_job.status in ("failed", "cancelled"):
+            return SearchResponseOut(
+                job_id=result_job.job_id,
+                status=result_job.status,
+                error_message=result_job.error_message or ("Search failed" if result_job.status == "failed" else None),
+                results=[],
+                summary=SearchSummaryOut(
+                    total=0,
+                    keyword=payload.keyword,
+                    channel_distribution={},
+                    keyword_clusters=[],
+                    time_distribution={},
+                    top_by_engagement=[],
+                ),
+            )
 
         output = json.loads(result_job.output_json or "{}")
         result_ids = output.get("result_ids", [])
         summary = output.get("summary", {})
         results = container.sniffer_repo.get_results_by_ids(result_ids) if result_ids else []
         return SearchResponseOut(
+            job_id=result_job.job_id,
+            status=result_job.status,
             results=[_result_to_out(r) for r in results],
             summary=SearchSummaryOut(**summary),
+        )
+
+    @router.get("/jobs/{job_id}", response_model=SearchResponseOut)
+    def get_search_job_result(job_id: str, response: Response) -> SearchResponseOut:
+        """根据 job_id 取回 sniffer_search 的最终结果（供 202 轮询链路取回）。"""
+        job = container.job_repo.get_job(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        if job.job_type != "sniffer_search":
+            raise HTTPException(status_code=400, detail="Not a sniffer_search job")
+
+        keyword = ""
+        try:
+            keyword = str(json.loads(job.input_json or "{}").get("keyword") or "")
+        except Exception:
+            keyword = ""
+
+        empty_summary = SearchSummaryOut(
+            total=0,
+            keyword=keyword,
+            channel_distribution={},
+            keyword_clusters=[],
+            time_distribution={},
+            top_by_engagement=[],
+        )
+
+        # Not ready yet
+        if job.status in ("queued", "running"):
+            response.status_code = 202
+            response.headers["Location"] = f"/jobs/{job_id}"
+            response.headers["Retry-After"] = "2"
+            return SearchResponseOut(
+                job_id=job_id,
+                status=job.status,
+                error_message=job.error_message,
+                results=[],
+                summary=empty_summary,
+            )
+
+        # Terminal but not succeeded
+        if job.status in ("failed", "cancelled"):
+            return SearchResponseOut(
+                job_id=job_id,
+                status=job.status,
+                error_message=job.error_message,
+                results=[],
+                summary=empty_summary,
+            )
+
+        output = json.loads(job.output_json or "{}")
+        result_ids = output.get("result_ids", [])
+        summary = output.get("summary", {})
+        results = container.sniffer_repo.get_results_by_ids(result_ids) if result_ids else []
+        try:
+            summary_out = SearchSummaryOut(**summary)
+        except Exception:
+            summary_out = empty_summary
+
+        return SearchResponseOut(
+            job_id=job_id,
+            status=job.status,
+            results=[_result_to_out(r) for r in results],
+            summary=summary_out,
         )
 
     @router.get("/channels", response_model=list[ChannelInfoOut])
@@ -121,37 +230,58 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
 
     # --- P1-1: Deep analyze ---
 
-    @router.post("/results/{result_id}/deep-analyze", response_model=ResourceAnalysisOut)
-    def deep_analyze(result_id: str):
+    @router.post("/results/{result_id}/deep-analyze", response_model=ResourceAnalysisOut | JobAcceptedOut)
+    def deep_analyze(
+        result_id: str,
+        response: Response,
+        wait: bool = Query(False),
+        timeout: int = Query(120),
+    ) -> ResourceAnalysisOut | JobAcceptedOut:
+        from backend.app.utils import wait_for_job
+        from core.models import Job
         sr = container.sniffer_repo.get_result(result_id)
         if not sr:
             raise HTTPException(status_code=404, detail="Result not found")
-        container.job_repo.append_event(ProvenanceEvent(
-            event_id=uuid.uuid4().hex[:12], run_id=result_id,
-            event_type="DeepAnalyzeStarted", actor="user",
-            entity_refs={"result_id": result_id},
+
+        job_id = uuid.uuid4().hex[:12]
+        container.job_repo.create_job(Job(
+            job_id=job_id,
+            job_type="sniffer_deep_analyze",
+            input_json=json.dumps({"result_id": result_id}),
         ))
-        from core.pipeline.stages import canonicalize_url, make_resource_id
-        canonical = canonicalize_url(sr.url)
-        resource = Resource(
-            resource_id=make_resource_id(canonical),
-            canonical_url=canonical,
-            source=f"sniffer:{sr.channel}",
-            provenance={"sniffer_result_id": sr.result_id, "channel": sr.channel},
-            title=sr.title,
-            published_at=sr.published_at,
-            text=sr.snippet or sr.title,
-            original_url=sr.url,
-            topics=[],
-            summary=sr.snippet or "",
-        )
-        container.resource_repo.upsert(resource)
-        analysis = container.article_agent.analyze(resource)
-        container.job_repo.append_event(ProvenanceEvent(
-            event_id=uuid.uuid4().hex[:12], run_id=result_id,
-            event_type="DeepAnalyzeFinished", actor="system",
-            entity_refs={"result_id": result_id, "resource_id": analysis.resource_id},
-        ))
+
+        if not wait:
+            response.status_code = 202
+            return JobAcceptedOut(job_id=job_id, status="queued")
+
+        result_job = wait_for_job(container.job_repo, job_id, timeout)
+        if result_job.status in ("queued", "running"):
+            response.status_code = 202
+            return JobAcceptedOut(job_id=job_id, status=result_job.status)
+        if result_job.status in ("failed", "cancelled"):
+            return JobAcceptedOut(
+                job_id=job_id,
+                status=result_job.status,
+                error_message=result_job.error_message or ("Deep analyze failed" if result_job.status == "failed" else None),
+            )
+
+        output = json.loads(result_job.output_json or "{}")
+        resource_id = output.get("resource_id")
+        if not resource_id:
+            raise HTTPException(status_code=500, detail={
+                "job_id": job_id,
+                "status": "succeeded",
+                "error_message": "Missing resource_id in job output",
+            })
+
+        analysis = container.analysis_repo.get_by_resource_id(resource_id)
+        if not analysis:
+            raise HTTPException(status_code=500, detail={
+                "job_id": job_id,
+                "status": "succeeded",
+                "error_message": "Analysis not found",
+            })
+
         return ResourceAnalysisOut(
             resource_id=analysis.resource_id,
             summary=analysis.summary,
@@ -170,72 +300,147 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
 
     # --- P1-3: Save to KB ---
 
-    @router.post("/results/{result_id}/save-to-kb")
-    def save_to_kb(result_id: str, payload: SaveToKBIn):
+    @router.post("/results/{result_id}/save-to-kb", response_model=SaveToKBOut | JobAcceptedOut)
+    def save_to_kb(
+        result_id: str,
+        payload: SaveToKBIn,
+        response: Response,
+        wait: bool = Query(False),
+        timeout: int = Query(120),
+    ) -> SaveToKBOut | JobAcceptedOut:
+        from backend.app.utils import wait_for_job
         sr = container.sniffer_repo.get_result(result_id)
         if not sr:
             raise HTTPException(status_code=404, detail="Result not found")
         kb = container.kb_repo.get_kb(payload.kb_id)
         if not kb:
             raise HTTPException(status_code=404, detail="Knowledge base not found")
-        from core.pipeline.stages import canonicalize_url, make_resource_id
-        canonical = canonicalize_url(sr.url)
-        resource = Resource(
-            resource_id=make_resource_id(canonical),
-            canonical_url=canonical,
-            source=f"sniffer:{sr.channel}",
-            provenance={"sniffer_result_id": sr.result_id, "channel": sr.channel},
-            title=sr.title,
-            published_at=sr.published_at,
-            text=sr.snippet or sr.title,
-            original_url=sr.url,
-            topics=[],
-            summary=sr.snippet or "",
-        )
-        container.resource_repo.upsert(resource)
-        container.kb_repo.add_item(payload.kb_id, resource.resource_id)
-        container.job_repo.append_event(ProvenanceEvent(
-            event_id=uuid.uuid4().hex[:12], run_id=result_id,
-            event_type="SavedToKB", actor="user",
-            entity_refs={"result_id": result_id, "resource_id": resource.resource_id, "kb_id": payload.kb_id},
+
+        job_id = uuid.uuid4().hex[:12]
+        container.job_repo.create_job(Job(
+            job_id=job_id,
+            job_type="sniffer_save_to_kb",
+            input_json=json.dumps({"result_id": result_id, "kb_id": payload.kb_id}),
         ))
-        return {"saved": True, "resource_id": resource.resource_id, "kb_id": payload.kb_id}
+
+        if not wait:
+            response.status_code = 202
+            return JobAcceptedOut(job_id=job_id, status="queued")
+
+        result_job = wait_for_job(container.job_repo, job_id, timeout)
+        if result_job.status in ("queued", "running"):
+            response.status_code = 202
+            return JobAcceptedOut(job_id=job_id, status=result_job.status)
+        if result_job.status in ("failed", "cancelled"):
+            return JobAcceptedOut(
+                job_id=job_id,
+                status=result_job.status,
+                error_message=result_job.error_message or ("Save to KB failed" if result_job.status == "failed" else None),
+            )
+
+        output = json.loads(result_job.output_json or "{}")
+        resource_id = output.get("resource_id")
+        kb_id = output.get("kb_id")
+        if not resource_id or not kb_id:
+            raise HTTPException(status_code=500, detail={
+                "job_id": job_id,
+                "status": "succeeded",
+                "error_message": "Missing resource_id/kb_id in job output",
+            })
+        return SaveToKBOut(saved=True, resource_id=resource_id, kb_id=kb_id)
 
     # --- P1-3: Convert to source ---
 
-    @router.post("/results/{result_id}/convert-source")
-    def convert_source(result_id: str, payload: ConvertSourceIn):
+    @router.post("/results/{result_id}/convert-source", response_model=ConvertSourceOut | JobAcceptedOut)
+    def convert_source(
+        result_id: str,
+        payload: ConvertSourceIn,
+        response: Response,
+        wait: bool = Query(False),
+        timeout: int = Query(120),
+    ) -> ConvertSourceOut | JobAcceptedOut:
+        from backend.app.utils import wait_for_job
         sr = container.sniffer_repo.get_result(result_id)
         if not sr:
             raise HTTPException(status_code=404, detail="Result not found")
-        source = SourceRecord(
-            source_id=uuid.uuid4().hex[:12],
-            source_type=payload.source_type,
-            name=payload.name or sr.title[:60],
-            endpoint=sr.url,
-            config={"origin": "sniffer", "channel": sr.channel},
-            enabled=True,
-        )
-        container.source_repo.upsert_source(source)
-        container.job_repo.append_event(ProvenanceEvent(
-            event_id=uuid.uuid4().hex[:12], run_id=result_id,
-            event_type="ConvertedToSource", actor="user",
-            entity_refs={"result_id": result_id, "source_id": source.source_id},
+
+        job_id = uuid.uuid4().hex[:12]
+        container.job_repo.create_job(Job(
+            job_id=job_id,
+            job_type="sniffer_convert_source",
+            input_json=json.dumps({
+                "result_id": result_id,
+                "name": payload.name,
+                "source_type": payload.source_type,
+            }),
         ))
-        return {"converted": True, "source_id": source.source_id}
+
+        if not wait:
+            response.status_code = 202
+            return JobAcceptedOut(job_id=job_id, status="queued")
+
+        result_job = wait_for_job(container.job_repo, job_id, timeout)
+        if result_job.status in ("queued", "running"):
+            response.status_code = 202
+            return JobAcceptedOut(job_id=job_id, status=result_job.status)
+        if result_job.status in ("failed", "cancelled"):
+            return JobAcceptedOut(
+                job_id=job_id,
+                status=result_job.status,
+                error_message=result_job.error_message or ("Convert to source failed" if result_job.status == "failed" else None),
+            )
+
+        output = json.loads(result_job.output_json or "{}")
+        source_id = output.get("source_id")
+        if not source_id:
+            raise HTTPException(status_code=500, detail={
+                "job_id": job_id,
+                "status": "succeeded",
+                "error_message": "Missing source_id in job output",
+            })
+        return ConvertSourceOut(converted=True, source_id=source_id)
 
     # --- P1-2: Compare ---
 
-    @router.post("/compare", response_model=CompareSummaryOut)
-    def compare(payload: CompareIn):
-        results = container.sniffer_repo.get_results_by_ids(payload.result_ids)
-        if len(results) < 2:
+    @router.post("/compare", response_model=CompareSummaryOut | JobAcceptedOut)
+    def compare(
+        payload: CompareIn,
+        response: Response,
+        wait: bool = Query(False),
+        timeout: int = Query(120),
+    ) -> CompareSummaryOut | JobAcceptedOut:
+        from backend.app.utils import wait_for_job
+        from core.models import Job
+        if len(payload.result_ids) < 2:
             raise HTTPException(status_code=400, detail="Need at least 2 results to compare")
-        summary = container.summary_engine.compare(results, container.llm_client)
+
+        job_id = uuid.uuid4().hex[:12]
+        container.job_repo.create_job(Job(
+            job_id=job_id,
+            job_type="sniffer_compare",
+            input_json=json.dumps({"result_ids": payload.result_ids}),
+        ))
+
+        if not wait:
+            response.status_code = 202
+            return JobAcceptedOut(job_id=job_id, status="queued")
+
+        result_job = wait_for_job(container.job_repo, job_id, timeout)
+        if result_job.status in ("queued", "running"):
+            response.status_code = 202
+            return JobAcceptedOut(job_id=job_id, status=result_job.status)
+        if result_job.status in ("failed", "cancelled"):
+            return JobAcceptedOut(
+                job_id=job_id,
+                status=result_job.status,
+                error_message=result_job.error_message or ("Compare failed" if result_job.status == "failed" else None),
+            )
+
+        output = json.loads(result_job.output_json or "{}")
         return CompareSummaryOut(
-            dimensions=summary.dimensions,
-            verdict=summary.verdict,
-            model=summary.model,
+            dimensions=output.get("dimensions") or [],
+            verdict=str(output.get("verdict") or ""),
+            model=str(output.get("model") or ""),
         )
 
     # --- P1-4: Import / Export ---
@@ -274,7 +479,13 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
         return {"deleted": True}
 
     @router.post("/packs/{pack_id}/run", response_model=SearchResponseOut)
-    def run_pack(pack_id: str):
+    def run_pack(
+        pack_id: str,
+        response: Response,
+        wait: bool = Query(True),
+        timeout: int = Query(60),
+    ):
+        from backend.app.utils import wait_for_job
         pack = container.sniffer_repo.get_pack(pack_id)
         if not pack:
             raise HTTPException(status_code=404, detail="Pack not found")
@@ -293,15 +504,52 @@ def mount_sniffer_routes(container: AppContainer) -> APIRouter:
             job_type="sniffer_search",
             input_json=json.dumps(input_data),
         ))
-        result_job = container.job_runner.run(job.job_id)
-        if result_job.status == "failed":
-            raise HTTPException(status_code=500, detail=result_job.error_message or "Pack run failed")
+
+        if not wait:
+            return SearchResponseOut(job_id=job.job_id, status=job.status, results=[], summary=SearchSummaryOut(
+                total=0, keyword=input_data["keyword"], channel_distribution={},
+                keyword_clusters=[], time_distribution={}, top_by_engagement=[],
+            ))
+
+        result_job = wait_for_job(container.job_repo, job.job_id, timeout)
+        if result_job.status in ("queued", "running"):
+            response.status_code = 202
+            return SearchResponseOut(
+                job_id=result_job.job_id,
+                status=result_job.status,
+                results=[],
+                summary=SearchSummaryOut(
+                    total=0,
+                    keyword=input_data["keyword"],
+                    channel_distribution={},
+                    keyword_clusters=[],
+                    time_distribution={},
+                    top_by_engagement=[],
+                ),
+            )
+        if result_job.status in ("failed", "cancelled"):
+            return SearchResponseOut(
+                job_id=result_job.job_id,
+                status=result_job.status,
+                error_message=result_job.error_message or ("Pack run failed" if result_job.status == "failed" else None),
+                results=[],
+                summary=SearchSummaryOut(
+                    total=0,
+                    keyword=input_data["keyword"],
+                    channel_distribution={},
+                    keyword_clusters=[],
+                    time_distribution={},
+                    top_by_engagement=[],
+                ),
+            )
 
         output = json.loads(result_job.output_json or "{}")
         result_ids = output.get("result_ids", [])
         summary = output.get("summary", {})
         results = container.sniffer_repo.get_results_by_ids(result_ids) if result_ids else []
         return SearchResponseOut(
+            job_id=result_job.job_id,
+            status=result_job.status,
             results=[_result_to_out(r) for r in results],
             summary=SearchSummaryOut(**summary),
         )

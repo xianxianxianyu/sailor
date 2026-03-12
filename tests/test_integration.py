@@ -27,9 +27,7 @@ def test_container_builds(tmp_path):
     assert container.db is not None
     assert container.resource_repo is not None
     assert container.job_runner is not None
-    assert container.feed_repo is not None
     assert container.source_repo is not None
-    assert container.ingestion_service is not None
 
 
 # ---------------------------------------------------------------------------
@@ -45,16 +43,6 @@ def test_healthz_reachable():
     assert client.get("/healthz").status_code == 200
 
 
-def test_feeds_list_reachable():
-    from fastapi.testclient import TestClient
-    from backend.app.main import app
-
-    client = TestClient(app)
-    resp = client.get("/feeds")
-    assert resp.status_code == 200
-    assert isinstance(resp.json(), list)
-
-
 def test_sources_list_reachable():
     from fastapi.testclient import TestClient
     from backend.app.main import app
@@ -63,15 +51,6 @@ def test_sources_list_reachable():
     resp = client.get("/sources")
     assert resp.status_code == 200
     assert isinstance(resp.json(), list)
-
-
-def test_trending_get_reachable():
-    from fastapi.testclient import TestClient
-    from backend.app.main import app
-
-    client = TestClient(app)
-    resp = client.get("/trending")
-    assert resp.status_code == 200
 
 
 def test_logs_get_reachable():
@@ -230,22 +209,6 @@ def test_rssfeed_has_feed_id_attribute():
 
 
 # ---------------------------------------------------------------------------
-# 8. Regression: Fix 3 — IngestionResult has collected_count/processed_count
-# ---------------------------------------------------------------------------
-
-def test_ingestion_result_field_names():
-    """IngestionResult should have collected_count/processed_count, not new_count etc."""
-    from core.services.ingestion import IngestionResult
-
-    result = IngestionResult(collected_count=10, processed_count=8)
-    assert result.collected_count == 10
-    assert result.processed_count == 8
-    assert not hasattr(result, "new_count")
-    assert not hasattr(result, "updated_count")
-    assert not hasattr(result, "skipped_count")
-
-
-# ---------------------------------------------------------------------------
 # 9. Regression: Fix 4 — SSE log deque with seq numbers
 # ---------------------------------------------------------------------------
 
@@ -341,19 +304,6 @@ def test_db_pragmas_set(db):
 
 
 # ---------------------------------------------------------------------------
-# 13. Regression: Fix 8 — IngestionHandler registered
-# ---------------------------------------------------------------------------
-
-def test_ingestion_handler_registered(tmp_path):
-    """build_container should register an 'ingestion' handler in job_runner."""
-    _create_project_files(tmp_path)
-    from backend.app.container import build_container
-
-    container = build_container(tmp_path)
-    assert "ingestion" in container.job_runner._handlers
-
-
-# ---------------------------------------------------------------------------
 # 14. Regression: Fix 9 — IntelligenceEngine.process accepts ctx
 # ---------------------------------------------------------------------------
 
@@ -366,6 +316,51 @@ def test_intelligence_engine_process_accepts_ctx():
     assert "ctx" in sig.parameters
     # Default should be None (backward-compatible)
     assert sig.parameters["ctx"].default is None
+
+
+# ---------------------------------------------------------------------------
+# Helper
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# 15. P7.2 — AccessLogMiddleware logs requests, skips /healthz
+# ---------------------------------------------------------------------------
+
+def test_access_log_middleware_logs_request(caplog):
+    """AccessLogMiddleware should log GET /follows with status code."""
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+
+    client = TestClient(app)
+    with caplog.at_level(logging.INFO, logger="backend.app.middleware"):
+        client.get("/follows")
+
+    assert any("GET /follows" in r.message and "200" in r.message for r in caplog.records)
+
+
+def test_access_log_middleware_skips_healthz(caplog):
+    """AccessLogMiddleware should NOT log /healthz requests."""
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+
+    client = TestClient(app)
+    with caplog.at_level(logging.INFO, logger="backend.app.middleware"):
+        client.get("/healthz")
+
+    assert not any("/healthz" in r.message for r in caplog.records)
+
+
+@pytest.mark.parametrize("level_name,expected", [
+    ("DEBUG", logging.DEBUG),
+    ("INFO", logging.INFO),
+    ("WARNING", logging.WARNING),
+])
+def test_log_level_env_var(monkeypatch, level_name, expected):
+    """setup_logging() should respect LOG_LEVEL env var."""
+    monkeypatch.setenv("LOG_LEVEL", level_name)
+    setup_logging()
+    root = logging.getLogger()
+    assert root.level == expected
 
 
 # ---------------------------------------------------------------------------

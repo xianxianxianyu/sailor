@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException
@@ -10,7 +11,9 @@ from backend.app.container import AppContainer
 from backend.app.schemas import AddKbItemIn, KbItemOut, KnowledgeBaseOut
 
 
-router = APIRouter(prefix="/knowledge-bases", tags=["knowledge-bases"])
+router = APIRouter(prefix="/knowledge-bases", tags=["system"])
+
+logger = logging.getLogger(__name__)
 
 
 class CreateKBIn(BaseModel):
@@ -44,6 +47,7 @@ def mount_knowledge_base_routes(container: AppContainer) -> APIRouter:
 
     @router.delete("/{kb_id}")
     def delete_knowledge_base(kb_id: str) -> dict[str, bool]:
+        # The kb_repo.delete_kb already handles cascade deletion of kb_items
         deleted = container.kb_repo.delete_kb(kb_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Knowledge base not found")
@@ -61,7 +65,22 @@ def mount_knowledge_base_routes(container: AppContainer) -> APIRouter:
             "add_to_kb", resource_id=payload.resource_id, kb_id=kb_id,
         )
 
-        return KbItemOut.model_validate(asdict(item))
+        # P1: 触发自动连边 job
+        import json
+        import uuid
+        from core.models import Job
+        job_id = f"kg_add_{uuid.uuid4().hex[:12]}"
+        job = Job(
+            job_id=job_id,
+            job_type="kg_add_node",
+            input_json=json.dumps({"kb_id": kb_id, "node_id": payload.resource_id}),
+        )
+        container.job_repo.create_job(job)
+        # job is queued; the worker process will execute it
+        logger.info("[kb] Enqueued kg_add_node job %s", job_id)
+
+        out = {**asdict(item), "kg_job_id": job_id}
+        return KbItemOut.model_validate(out)
 
     @router.get("/{kb_id}/items", response_model=list[KBItemResourceOut])
     def list_kb_items(kb_id: str) -> list[KBItemResourceOut]:

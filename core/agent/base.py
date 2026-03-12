@@ -27,12 +27,26 @@ class LLMResponse:
 
 
 class LLMClient:
-    """使用 urllib 调用 OpenAI Chat Completions API，与 MinifluxCollector 风格一致。"""
+    """
+    LLM 客户端兼容层。
 
-    def __init__(self, config: LLMConfig) -> None:
+    将调用转发到 LLMConfigEngine，如果没有 Engine 则使用原有的直接 HTTP 调用逻辑。
+    """
+
+    def __init__(self, config: LLMConfig, engine=None) -> None:
         self.config = config
+        self._engine = engine  # LLMConfigEngine 引用
 
     def chat(self, messages: list[dict], temperature: float | None = None, max_tokens: int | None = None) -> LLMResponse:
+        if self._engine:
+            # 通过 Engine 调用（新路径）
+            return self._engine.chat(messages, temperature, max_tokens)
+        else:
+            # 直接调用（旧路径，保持兼容）
+            return self._legacy_chat(messages, temperature, max_tokens)
+
+    def _legacy_chat(self, messages: list[dict], temperature: float | None = None, max_tokens: int | None = None) -> LLMResponse:
+        """原有的直接 HTTP 调用逻辑（保持向后兼容）"""
         if not self.config.api_key:
             raise ValueError("OpenAI API Key 未配置")
 

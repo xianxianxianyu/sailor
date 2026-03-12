@@ -2,11 +2,9 @@ import { useEffect, useState } from "react";
 import { createTag, deleteTag, getTags } from "../api";
 import type { UserTag } from "../types";
 
-type Props = {
-  onNavigateToTrending?: () => void;
-};
+type Props = Record<string, never>;
 
-export default function TagPage({ onNavigateToTrending }: Props) {
+export default function TagPage(_props: Props) {
   const [tags, setTags] = useState<UserTag[]>([]);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("#0f766e");
@@ -61,7 +59,7 @@ export default function TagPage({ onNavigateToTrending }: Props) {
                     color: tag.color,
                     borderColor: tag.color + "40",
                   }}
-                  onClick={() => onNavigateToTrending?.()}
+                  onClick={() => {}}
                   title={`${tag.name} (权重: ${tag.weight})`}
                 >
                   {tag.name}

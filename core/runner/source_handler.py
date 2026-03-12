@@ -10,7 +10,7 @@ from core.pipeline.base import PreprocessPipeline
 from core.sources.collectors import collect_source_entries
 from core.storage.repositories import ResourceRepository
 from core.storage.source_repository import SourceRepository
-from .handlers import RunContext
+from .handlers import JobCancelled, RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +47,14 @@ class SourceHandler:
             entity_refs={"source_id": source_id},
         )
 
+        entries = []
+        processed = 0
         try:
+            ctx.raise_if_cancel_requested("Source run cancelled before collection")
             entries = collect_source_entries(source, self.base_dir)
 
-            processed = 0
             for entry in entries:
+                ctx.raise_if_cancel_requested("Source run cancelled by user")
                 resource = self.pipeline.process(entry)
                 self.resource_repo.upsert(resource)
                 self.source_repo.upsert_item_index(
@@ -82,12 +85,27 @@ class SourceHandler:
                 "processed_count": processed,
             })
 
+        except JobCancelled as exc:
+            self.source_repo.finish_run(
+                run.run_id,
+                status="cancelled",
+                fetched_count=len(entries),
+                processed_count=processed,
+                error_message=str(exc)[:500],
+                metadata={"source_type": source.source_type},
+            )
+            ctx.emit_event(
+                "SourceCollectCancelled",
+                payload={"fetched": len(entries), "processed": processed, "reason": str(exc)[:500]},
+                entity_refs={"source_id": source_id, "source_run_id": run.run_id},
+            )
+            raise
         except Exception as exc:
             self.source_repo.finish_run(
                 run.run_id,
                 status="failed",
-                fetched_count=0,
-                processed_count=0,
+                fetched_count=len(entries),
+                processed_count=processed,
                 error_message=str(exc)[:500],
                 metadata={"source_type": source.source_type},
             )

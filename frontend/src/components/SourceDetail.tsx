@@ -1,21 +1,33 @@
 import { useState, useEffect } from "react";
-import type { SourceRecord, SourceResource, RSSFeed } from "../types";
+import type { SourceRecord, SourceResource } from "../types";
 import type { ResourceAnalysis } from "../types";
-import { getSourceResources, getFeedResources, getKnowledgeBases, addToKnowledgeBase, analyzeResource } from "../api";
+import { getSourceResources, getKnowledgeBases, addToKnowledgeBase, analyzeResource } from "../api";
+import { formatJobError } from "../jobErrors";
 import type { KnowledgeBase } from "../types";
 
-type AnySource = (SourceRecord & { sourceKind: "unified" }) | (RSSFeed & { sourceKind: "rss" });
-
 interface SourceDetailProps {
-  source: AnySource | null;
+  source: SourceRecord | null;
   onRun: (sourceId: string) => void;
-  onToggle: (source: AnySource) => void;
+  onCancelRun?: (jobId: string) => void;
+  onToggle: (source: SourceRecord) => void;
   onDelete: (sourceId: string) => void;
-  actingSourceId: string | null;
-  refreshKey?: number; // 用于触发资源刷新
+  isActing: boolean;
+  activeJobId?: string | null;
+  isCancelling?: boolean;
+  refreshKey?: number;
 }
 
-export default function SourceDetail({ source, onRun, onToggle, onDelete, actingSourceId, refreshKey = 0 }: SourceDetailProps) {
+export default function SourceDetail({
+  source,
+  onRun,
+  onCancelRun,
+  onToggle,
+  onDelete,
+  isActing,
+  activeJobId = null,
+  isCancelling = false,
+  refreshKey = 0,
+}: SourceDetailProps) {
   const [resources, setResources] = useState<SourceResource[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
   const [resourceError, setResourceError] = useState<string | null>(null);
@@ -23,6 +35,7 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [selectedResourceId, setSelectedResourceId] = useState<string | null>(null);
   const [addingToKb, setAddingToKb] = useState(false);
+  const [kbError, setKbError] = useState<string | null>(null);
   const [analyzingIds, setAnalyzingIds] = useState<Set<string>>(new Set());
   const [analysisResults, setAnalysisResults] = useState<Record<string, ResourceAnalysis>>({});
   const [analysisErrors, setAnalysisErrors] = useState<Record<string, string>>({});
@@ -35,55 +48,44 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
       return;
     }
 
-    const isRss = source.sourceKind === "rss";
-
-    if (isRss) {
-      const feedId = (source as RSSFeed).feed_id;
-      setLoadingResources(true);
-      setResourceError(null);
-      getFeedResources(feedId, 80, 0)
-        .then((data) => { console.log("[SourceDetail] getFeedResources result:", data.length, "items"); setResources(data); })
-        .catch((e) => { console.error("[SourceDetail] getFeedResources error:", e); setResourceError(String(e)); setResources([]); })
-        .finally(() => setLoadingResources(false));
-      return;
-    }
-
-    const sourceId = (source as SourceRecord).source_id;
     setLoadingResources(true);
     setResourceError(null);
-    getSourceResources(sourceId, 80, 0)
-      .then((data) => { console.log("[SourceDetail] getSourceResources result:", data.length, "items"); setResources(data); })
-      .catch((e) => { console.error("[SourceDetail] getSourceResources error:", e); setResourceError(String(e)); setResources([]); })
+    getSourceResources(source.source_id, 80, 0)
+      .then((data) => setResources(data))
+      .catch((e) => { setResourceError(String(e)); setResources([]); })
       .finally(() => setLoadingResources(false));
   }, [source, refreshKey]);
 
   async function openAddToKb(resourceId: string) {
     setSelectedResourceId(resourceId);
+    setKbError(null);
     try {
       const kbs = await getKnowledgeBases();
       setKnowledgeBases(kbs);
       setShowKbModal(true);
-    } catch {
-      // handle error
+    } catch (e: unknown) {
+      setKnowledgeBases([]);
+      setKbError(e instanceof Error ? e.message : "加载知识库列表失败");
+      setShowKbModal(true);
     }
   }
 
   async function handleAddResourceToKb(kbId: string) {
     if (!selectedResourceId) return;
     setAddingToKb(true);
+    setKbError(null);
     try {
       await addToKnowledgeBase(kbId, selectedResourceId);
       setShowKbModal(false);
       setSelectedResourceId(null);
-    } catch {
-      // handle error
+    } catch (e: unknown) {
+      setKbError(formatJobError(e, "添加到知识库失败"));
     } finally {
       setAddingToKb(false);
     }
   }
 
   async function handleAnalyze(resourceId: string) {
-    // 已有结果 → 切换展开
     if (analysisResults[resourceId]) {
       setExpandedAnalysis((prev) => {
         const next = new Set(prev);
@@ -112,6 +114,8 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
     }
   }
 
+  const hasActiveRun = Boolean(activeJobId);
+
   if (!source) {
     return (
       <div className="source-detail-empty">
@@ -119,21 +123,6 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
       </div>
     );
   }
-
-  const isRss = source.sourceKind === "rss";
-  const unifiedSource = !isRss ? (source as SourceRecord) : null;
-  const rssSource = isRss ? (source as RSSFeed) : null;
-
-  const name = isRss ? rssSource!.name : unifiedSource!.name;
-  const endpoint = isRss ? rssSource!.xml_url : unifiedSource!.endpoint;
-  const enabled = isRss ? rssSource!.enabled : unifiedSource!.enabled;
-  const errorCount = isRss ? rssSource!.error_count : unifiedSource!.error_count;
-  const lastError = isRss ? rssSource!.last_error : unifiedSource!.last_error;
-  const sourceType = isRss ? "rss" : unifiedSource!.source_type;
-  const lastRunAt = isRss ? rssSource!.last_fetched_at : unifiedSource!.last_run_at;
-  const sourceId = isRss ? rssSource!.feed_id : unifiedSource!.source_id;
-
-  const isActing = actingSourceId === sourceId;
 
   function getTypeName(type: string): string {
     const names: Record<string, string> = {
@@ -162,30 +151,40 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
     <div className="source-detail">
       <div className="source-detail-header">
         <div className="source-detail-title">
-          <h3>{name}</h3>
-          <span className="source-detail-type">{getTypeName(sourceType)}</span>
+          <h3>{source.name}</h3>
+          <span className="source-detail-type">{getTypeName(source.source_type)}</span>
         </div>
         <div className="source-detail-actions">
           <button
             className="icon-btn source-action-btn"
-            onClick={() => onRun(sourceId)}
-            disabled={isActing}
+            onClick={() => onRun(source.source_id)}
+            disabled={isActing || hasActiveRun}
             title="立即运行"
           >
             ▶
           </button>
+          {hasActiveRun && onCancelRun && (
+            <button
+              className="icon-btn source-action-btn danger"
+              onClick={() => onCancelRun(activeJobId!)}
+              disabled={isCancelling}
+              title="停止当前运行"
+            >
+              ■
+            </button>
+          )}
           <button
             className="icon-btn source-action-btn"
             onClick={() => onToggle(source)}
-            disabled={isActing}
-            title={enabled ? "暂停" : "启用"}
+            disabled={isActing || hasActiveRun}
+            title={source.enabled ? "暂停" : "启用"}
           >
-            {enabled ? "⏸" : "▶"}
+            {source.enabled ? "⏸" : "▶"}
           </button>
           <button
             className="icon-btn source-action-btn danger"
-            onClick={() => onDelete(sourceId)}
-            disabled={isActing}
+            onClick={() => onDelete(source.source_id)}
+            disabled={isActing || hasActiveRun}
             title="删除"
           >
             🗑
@@ -196,34 +195,34 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
       <div className="source-detail-info">
         <div className="source-detail-row">
           <span className="source-detail-label">类型:</span>
-          <span className="source-detail-value">{getTypeName(sourceType)}</span>
+          <span className="source-detail-value">{getTypeName(source.source_type)}</span>
         </div>
         <div className="source-detail-row">
           <span className="source-detail-label">状态:</span>
-          <span className={`source-detail-value ${enabled ? "status-enabled" : "status-disabled"}`}>
-            {enabled ? "● 启用" : "○ 暂停"}
+          <span className={`source-detail-value ${source.enabled ? "status-enabled" : "status-disabled"}`}>
+            {source.enabled ? "● 启用" : "○ 暂停"}
           </span>
         </div>
         <div className="source-detail-row">
           <span className="source-detail-label">上次运行:</span>
-          <span className="source-detail-value">{formatDate(lastRunAt)}</span>
+          <span className="source-detail-value">{formatDate(source.last_run_at)}</span>
         </div>
-        {errorCount > 0 && (
+        {source.error_count > 0 && (
           <div className="source-detail-row">
             <span className="source-detail-label">错误:</span>
-            <span className="source-detail-value source-detail-error">{errorCount} 次</span>
+            <span className="source-detail-value source-detail-error">{source.error_count} 次</span>
           </div>
         )}
-        {lastError && (
+        {source.last_error && (
           <div className="source-detail-error-msg">
             <span className="source-detail-label">错误信息:</span>
-            <span className="source-detail-value">{lastError}</span>
+            <span className="source-detail-value">{source.last_error}</span>
           </div>
         )}
-        {endpoint && (
+        {source.endpoint && (
           <div className="source-detail-row">
             <span className="source-detail-label">Endpoint:</span>
-            <span className="source-detail-value source-detail-url">{endpoint}</span>
+            <span className="source-detail-value source-detail-url">{source.endpoint}</span>
           </div>
         )}
       </div>
@@ -276,14 +275,12 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
                 </div>
                 {item.summary && <p className="source-resource-summary">{item.summary}</p>}
 
-                {/* 分析错误提示 */}
                 {analysisErrors[item.resource_id] && (
                   <div className="analysis-error">
                     {analysisErrors[item.resource_id]}
                   </div>
                 )}
 
-                {/* 分析结果展开区 */}
                 {expandedAnalysis.has(item.resource_id) && analysisResults[item.resource_id] && (() => {
                   const a = analysisResults[item.resource_id];
                   return (
@@ -329,9 +326,10 @@ export default function SourceDetail({ source, onRun, onToggle, onDelete, acting
       </div>
 
       {showKbModal && (
-        <div className="modal-backdrop" onClick={() => setShowKbModal(false)}>
+        <div className="modal-backdrop" onClick={() => { setShowKbModal(false); setKbError(null); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>选择知识库</h3>
+            {kbError && <p style={{ color: "var(--danger)" }}>{kbError}</p>}
             {knowledgeBases.length === 0 ? (
               <p>暂无知识库，请先在知识库页面创建。</p>
             ) : (

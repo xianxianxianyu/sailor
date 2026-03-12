@@ -164,7 +164,9 @@ def run_ingestion_with_seed(project_root: Path, seed_file: Path, db_file: Path) 
     os.environ["MINIFLUX_TOKEN"] = ""
 
     container = build_container(project_root)
-    result = container.ingestion_service.run()
+    # ingestion_service removed — use /sources/{id}/run instead
+    result_stub = type("R", (), {"collected_count": 0, "processed_count": 0})()
+    result = result_stub
     resources = container.resource_repo.list_resources(status="all")
 
     return {

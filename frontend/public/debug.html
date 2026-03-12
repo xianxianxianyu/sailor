@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Sailor Frontend 诊断页面</h1>
+
+    <div class="test-section">
+        <h2>1. 基础连接测试</h2>
+        <p id="basic-test" class="info">测试中...</p>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 后端 API 测试</h2>
+        <p id="api-test" class="info">测试中...</p>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 前端资源加载测试</h2>
+        <p id="resource-test" class="info">测试中...</p>
+    </div>
+
+    <div class="test-section">
+        <h2>4. 浏览器信息</h2>
+        <p id="browser-info"></p>
+    </div>
+
+    <script>
+        // 1. 基础测试
+        document.getElementById('basic-test').innerHTML = '<span class="success">✓ HTML 和 JavaScript 正常加载</span>';
+
+        // 2. 测试后端 API
+        fetch('http://localhost:8000/healthz')
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('api-test').innerHTML =
+                    `<span class="success">✓ 后端连接成功: ${JSON.stringify(data)}</span>`;
+            })
+            .catch(err => {
+                document.getElementById('api-test').innerHTML =
+                    `<span class="error">✗ 后端连接失败: ${err.message}</span>`;
+            });
+
+        // 3. 测试前端资源
+        fetch('/src/main.tsx')
+            .then(res => {
+                if (res.ok) {
+                    document.getElementById('resource-test').innerHTML =
+                        '<span class="success">✓ 前端资源可以正常加载</span>';
+                } else {
+                    document.getElementById('resource-test').innerHTML =
+                        `<span class="error">✗ 前端资源加载失败: ${res.status}</span>`;
+                }
+            })
+            .catch(err => {
+                document.getElementById('resource-test').innerHTML =
+                    `<span class="error">✗ 前端资源加载失败: ${err.message}</span>`;
+            });
+
+        // 4. 浏览器信息
+        document.getElementById('browser-info').innerHTML = `
+            <strong>User Agent:</strong> ${navigator.userAgent}<br>
+            <strong>当前 URL:</strong> ${window.location.href}<br>
+            <strong>协议:</strong> ${window.location.protocol}<br>
+            <strong>主机:</strong> ${window.location.host}
+        `;
+    </script>
+</body>
+</html>

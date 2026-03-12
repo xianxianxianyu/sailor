@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { SnifferPack } from "../types";
+﻿import { useEffect, useState } from "react";
+import type { SearchResponse, SnifferPack } from "../types";
 import {
   getSnifferPacks,
   deleteSnifferPack,
@@ -10,7 +10,8 @@ import {
 } from "../api";
 
 type Props = {
-  onPackRun?: (results: unknown) => void;
+  onPackRun?: (results: SearchResponse) => void;
+  onPackRunError?: (error: unknown) => void;
 };
 
 const SCHEDULE_OPTIONS = [
@@ -21,7 +22,7 @@ const SCHEDULE_OPTIONS = [
   { label: "每天", value: "every_24h" },
 ];
 
-export default function SnifferPackPanel({ onPackRun }: Props) {
+export default function SnifferPackPanel({ onPackRun, onPackRunError }: Props) {
   const [packs, setPacks] = useState<SnifferPack[]>([]);
   const [busy, setBusy] = useState("");
   const [importJson, setImportJson] = useState("");
@@ -30,7 +31,7 @@ export default function SnifferPackPanel({ onPackRun }: Props) {
   useEffect(() => { loadPacks(); }, []);
 
   async function loadPacks() {
-    try { setPacks(await getSnifferPacks()); } catch { /* ignore */ }
+    try { setPacks(await getSnifferPacks()); } catch { }
   }
 
   async function handleRun(packId: string) {
@@ -38,8 +39,11 @@ export default function SnifferPackPanel({ onPackRun }: Props) {
     try {
       const res = await runSnifferPack(packId);
       onPackRun?.(res);
-    } catch { /* ignore */ }
-    setBusy("");
+    } catch (e: unknown) {
+      onPackRunError?.(e);
+    } finally {
+      setBusy("");
+    }
   }
 
   async function handleDelete(packId: string) {
@@ -65,7 +69,7 @@ export default function SnifferPackPanel({ onPackRun }: Props) {
       setImportJson("");
       setShowImport(false);
       loadPacks();
-    } catch { /* ignore */ }
+    } catch { }
   }
 
   async function handleSchedule(packId: string, cron: string) {
@@ -76,7 +80,7 @@ export default function SnifferPackPanel({ onPackRun }: Props) {
   return (
     <div className="sniffer-pack-panel">
       <div className="sniffer-pack-header">
-        <h3>嗅探包</h3>
+        <h3>搜索包</h3>
         <button className="sniffer-action-btn" onClick={() => setShowImport(!showImport)}>导入</button>
       </div>
 
@@ -92,7 +96,7 @@ export default function SnifferPackPanel({ onPackRun }: Props) {
         </div>
       )}
 
-      {packs.length === 0 && <p className="sniffer-pack-empty">暂无嗅探包</p>}
+      {packs.length === 0 && <p className="sniffer-pack-empty">暂无搜索包</p>}
 
       {packs.map((p) => (
         <div key={p.pack_id} className="sniffer-pack-card">

@@ -190,9 +190,10 @@ async function bootstrap() {
   // Brief pause to let OS release ports
   await new Promise((resolve) => setTimeout(resolve, 500));
 
-  console.log("[Sailor] Starting backend and frontend...");
+  console.log("[Sailor] Starting backend, frontend, and worker...");
   spawnScript("dev:backend");
   spawnScript("dev:frontend");
+  spawnScript("dev:worker");
 
   await waitForUrl(BACKEND_HEALTH_URL, 120_000, pingHealth);
   await waitForUrl(FRONTEND_URL, 120_000);

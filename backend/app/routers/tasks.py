@@ -3,23 +3,20 @@ from __future__ import annotations
 import logging
 from dataclasses import asdict
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from backend.app.container import AppContainer
-from backend.app.schemas import IngestionRunOut, MainFlowTaskOut
+from backend.app.schemas import MainFlowTaskOut
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/tasks", tags=["tasks"])
+router = APIRouter(prefix="/tasks", tags=["jobs"])
 
 
 def mount_task_routes(container: AppContainer) -> APIRouter:
-    @router.post("/run-ingestion", response_model=IngestionRunOut)
-    def run_ingestion() -> IngestionRunOut:
-        logger.info("开始执行 RSS 抓取任务...")
-        result = container.ingestion_service.run()
-        logger.info("RSS 抓取完成: 采集 %d, 处理 %d", result.collected_count, result.processed_count)
-        return IngestionRunOut.model_validate(asdict(result))
+    @router.post("/run-ingestion")
+    def run_ingestion() -> None:
+        raise HTTPException(status_code=501, detail="run-ingestion 已废弃，请使用 /sources/{id}/run")
 
     @router.get("/main-flow", response_model=list[MainFlowTaskOut])
     def list_main_flow_tasks() -> list[MainFlowTaskOut]:

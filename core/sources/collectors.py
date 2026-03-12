@@ -79,8 +79,21 @@ def _collect_rss_entries(source: SourceRecord) -> list[RawEntry]:
         raise ValueError("RSS source requires xml_url or endpoint")
 
     parsed = feedparser.parse(xml_url)
-    if getattr(parsed, "bozo", False) and not parsed.entries:
-        raise ValueError(f"RSS parse failed: {getattr(parsed, 'bozo_exception', 'unknown')} ")
+
+    # Only raise error if parsing completely failed (no entries at all)
+    if not parsed.entries:
+        if getattr(parsed, "bozo", False):
+            bozo_exception = getattr(parsed, 'bozo_exception', 'unknown')
+            logger.warning(f"RSS parse warning for {xml_url}: {bozo_exception}")
+            # If there are truly no entries, raise error
+            raise ValueError(f"RSS parse failed: {bozo_exception}")
+        # No entries but no error - just return empty list
+        logger.info(f"RSS feed {xml_url} has no entries")
+        return []
+
+    # Log warning if bozo but we have entries (minor XML issues)
+    if getattr(parsed, "bozo", False):
+        logger.warning(f"RSS feed {xml_url} has minor XML issues but parsed successfully")
 
     entries: list[RawEntry] = []
     for entry in parsed.entries:

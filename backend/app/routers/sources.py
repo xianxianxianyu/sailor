@@ -8,7 +8,8 @@ from pathlib import Path
 from typing import Any
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Response
+from pydantic import BaseModel
 
 from backend.app.container import AppContainer
 from backend.app.schemas import (
@@ -26,6 +27,7 @@ from backend.app.schemas import (
 from core.models import Job, SourceRecord
 
 logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/sources", tags=["sources"])
 router = APIRouter(prefix="/sources", tags=["sources"])
 
 
@@ -99,7 +101,6 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
             raise HTTPException(status_code=400, detail="配置文件必须包含 sources 数组")
 
         imported = 0
-        rss_rows: list[dict[str, Any]] = []
         for item in source_items:
             if not isinstance(item, dict):
                 continue
@@ -132,23 +133,17 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
             )
             imported += 1
 
-            if source_type == "rss":
-                xml_url = str(item.get("xml_url") or endpoint or "")
-                if xml_url:
-                    rss_rows.append(
-                        {
-                            "name": name,
-                            "xml_url": xml_url,
-                            "html_url": str(item.get("html_url")) if item.get("html_url") else None,
-                        }
-                    )
-
-        rss_synced = container.feed_repo.import_feeds(rss_rows) if rss_rows else 0
-        logger.info("[sources] 导入完成: 导入 %d 个 source, 同步 %d 个 RSS feed", imported, rss_synced)
-        return ImportSourcesOut(imported=imported, rss_synced=rss_synced, total_parsed=len(source_items))
+        logger.info("[sources] 导入完成: 导入 %d 个 source", imported)
+        return ImportSourcesOut(imported=imported, total_parsed=len(source_items))
 
     @router.post("/{source_id}/run", response_model=RunSourceOut)
-    def run_source(source_id: str) -> RunSourceOut:
+    def run_source(
+        source_id: str,
+        response: Response,
+        wait: bool = Query(False),
+        timeout: int = Query(120),
+    ) -> RunSourceOut:
+        from backend.app.utils import wait_for_job
         source = container.source_repo.get_source(source_id)
         if not source:
             raise HTTPException(status_code=404, detail="Source not found")
@@ -160,69 +155,78 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
             job_type="source_run",
             input_json=json.dumps({"source_id": source_id}),
         ))
-        result_job = container.job_runner.run(job.job_id)
 
-        if result_job.status == "failed":
-            logger.error("[sources] source: %s 失败: %s", source_id, result_job.error_message)
-            raise HTTPException(status_code=500, detail=f"Source run failed: {result_job.error_message}")
+        if not wait:
+            return RunSourceOut(job_id=job.job_id, run_id="", source_id=source_id,
+                                status="queued", fetched_count=0, processed_count=0)
+
+        result_job = wait_for_job(container.job_repo, job.job_id, timeout)
+
+        if result_job.status in ("queued", "running"):
+            response.status_code = 202
+            return RunSourceOut(
+                job_id=result_job.job_id,
+                run_id="",
+                source_id=source_id,
+                status=result_job.status,
+                fetched_count=0,
+                processed_count=0,
+            )
+
+        if result_job.status in ("failed", "cancelled"):
+            if result_job.status == "failed":
+                logger.error("[sources] source: %s 失败: %s", source_id, result_job.error_message)
+            return RunSourceOut(
+                job_id=result_job.job_id,
+                run_id="",
+                source_id=source_id,
+                status=result_job.status,
+                fetched_count=0,
+                processed_count=0,
+                error_message=result_job.error_message or ("Source run failed" if result_job.status == "failed" else None),
+            )
 
         output = json.loads(result_job.output_json or "{}")
         logger.info("[sources] 完成 source: %s, 获取 %d 条, 处理 %d 条", source_id, output.get('fetched_count', 0), output.get('processed_count', 0))
 
         return RunSourceOut(
+            job_id=result_job.job_id,
             run_id=output.get("source_run_id", ""),
             source_id=source_id,
-            status="success",
+            status=result_job.status,
             fetched_count=output.get("fetched_count", 0),
             processed_count=output.get("processed_count", 0),
         )
 
     @router.post("/run-by-type/{source_type}", response_model=RunBatchOut)
     def run_sources_by_type(source_type: str, enabled_only: bool = True) -> RunBatchOut:
-        """按类型批量运行所有源"""
+        """按类型批量运行所有源（enqueue only）"""
         sources = container.source_repo.list_sources(source_type=source_type, enabled_only=enabled_only)
         if not sources:
             raise HTTPException(status_code=404, detail=f"No sources found for type: {source_type}")
 
-        logger.info("[sources] 开始批量运行 source_type=%s, 共 %d 个源", source_type, len(sources))
+        logger.info("[sources] 开始批量入队 source_type=%s, 共 %d 个源", source_type, len(sources))
 
-        success_count = 0
-        failed_count = 0
-        total_fetched = 0
-        total_processed = 0
-
+        job_ids = []
         for source in sources:
-            try:
-                job = container.job_repo.create_job(Job(
-                    job_id=uuid.uuid4().hex[:16],
-                    job_type="source_run",
-                    input_json=json.dumps({"source_id": source.source_id}),
-                ))
-                result_job = container.job_runner.run(job.job_id)
+            job = container.job_repo.create_job(Job(
+                job_id=uuid.uuid4().hex[:16],
+                job_type="source_run",
+                input_json=json.dumps({"source_id": source.source_id}),
+            ))
+            job_ids.append(job.job_id)
 
-                if result_job.status == "failed":
-                    failed_count += 1
-                    logger.error("[sources] source=%s 失败: %s", source.name, result_job.error_message)
-                else:
-                    output = json.loads(result_job.output_json or "{}")
-                    success_count += 1
-                    total_fetched += output.get("fetched_count", 0)
-                    total_processed += output.get("processed_count", 0)
-                    logger.info("[sources] source=%s 完成, 获取 %d 条", source.name, output.get('fetched_count', 0))
-
-            except Exception as e:
-                failed_count += 1
-                logger.error("[sources] source=%s 失败: %s", source.name, e)
-
-        logger.info("[sources] 批量运行完成: 成功 %d, 失败 %d, 共获取 %d 条", success_count, failed_count, total_fetched)
+        logger.info("[sources] 批量入队完成: 共 %d 个 job", len(job_ids))
 
         return RunBatchOut(
             source_type=source_type,
             total_sources=len(sources),
-            success_count=success_count,
-            failed_count=failed_count,
-            total_fetched=total_fetched,
-            total_processed=total_processed,
+            success_count=0,
+            failed_count=0,
+            total_fetched=0,
+            total_processed=0,
+            job_ids=job_ids,
+            status="queued",
         )
 
     @router.get("/{source_id}/resources", response_model=list[SourceResourceOut])
@@ -247,6 +251,40 @@ def mount_source_routes(container: AppContainer) -> APIRouter:
             ))
         return result
 
+    class _ImportOpmlIn(BaseModel):
+        opml_file: str | None = None
+
+    @router.post("/import-opml")
+    def import_opml(payload: _ImportOpmlIn) -> dict:
+        from core.collector.opml_parser import parse_opml
+
+        opml_path = Path(payload.opml_file) if payload.opml_file else container.settings.opml_file
+        if not opml_path.exists():
+            raise HTTPException(status_code=404, detail=f"OPML 文件不存在: {opml_path}")
+
+        content = opml_path.read_text(encoding="utf-8")
+        feed_infos = parse_opml(content)
+        logger.info("[sources] 解析到 %d 个 OPML 订阅源", len(feed_infos))
+
+        imported = 0
+        for feed in feed_infos:
+            source_id = "feed_" + hashlib.sha256(feed.xml_url.encode("utf-8")).hexdigest()[:12]
+            container.source_repo.upsert_source(
+                SourceRecord(
+                    source_id=source_id,
+                    source_type="rss",
+                    name=feed.name,
+                    endpoint=feed.xml_url,
+                    config={"html_url": feed.html_url} if feed.html_url else {},
+                    enabled=True,
+                    schedule_minutes=30,
+                )
+            )
+            imported += 1
+
+        logger.info("[sources] OPML 导入完成: %d 个源写入 source_registry", imported)
+        return {"imported": imported, "total_parsed": len(feed_infos)}
+
     return router
 
 
@@ -259,6 +297,8 @@ def _resolve_config_path(container: AppContainer, config_file: str | None) -> Pa
 
 
 def _make_source_id(source_type: str, endpoint: str | None, name: str) -> str:
+    if source_type in ("rss", "atom", "jsonfeed") and endpoint:
+        return "feed_" + hashlib.sha256(endpoint.encode("utf-8")).hexdigest()[:12]
     key = f"{source_type}:{endpoint or ''}:{name}".encode("utf-8")
     return "src_" + hashlib.sha256(key).hexdigest()[:12]
 
@@ -268,4 +308,3 @@ def _coerce_int(value: Any, default: int) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
-

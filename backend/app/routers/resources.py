@@ -8,7 +8,7 @@ from backend.app.container import AppContainer
 from backend.app.schemas import KnowledgeBaseOut, ResourceOut
 
 
-router = APIRouter(prefix="/resources", tags=["resources"])
+router = APIRouter(prefix="/resources", tags=["system"])
 
 
 def mount_resources_routes(container: AppContainer) -> APIRouter:

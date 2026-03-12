@@ -1,3 +1,1 @@
-from .ingestion import IngestionService
-
-__all__ = ["IngestionService"]
+__all__: list[str] = []

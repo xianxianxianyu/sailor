@@ -1,28 +1,20 @@
 import React from "react";
-import type { RSSFeed, SourceRecord } from "../types";
-
-export type AnySource = (SourceRecord & { sourceKind: "unified" }) | (RSSFeed & { sourceKind: "rss" });
+import type { SourceRecord } from "../types";
 
 interface SourceListProps {
-  sources: AnySource[];
+  sources: SourceRecord[];
   selectedId: string | null;
-  onSelect: (source: AnySource) => void;
+  onSelect: (source: SourceRecord) => void;
 }
 
 interface GroupedSources {
-  [key: string]: AnySource[];
+  [key: string]: SourceRecord[];
 }
 
-export function getSourceGroups(sources: AnySource[]): GroupedSources {
+function getSourceGroups(sources: SourceRecord[]): GroupedSources {
   return sources.reduce((acc, source) => {
-    let groupKey: string;
-    if (source.sourceKind === "unified") {
-      const domain = (source as SourceRecord).config?.content_domain as string | undefined;
-      groupKey = domain || getInferredGroup((source as SourceRecord).source_type);
-    } else {
-      groupKey = "rss";
-    }
-
+    const domain = source.config?.content_domain as string | undefined;
+    const groupKey = domain || getInferredGroup(source.source_type);
     if (!acc[groupKey]) acc[groupKey] = [];
     acc[groupKey].push(source);
     return acc;
@@ -90,23 +82,13 @@ export function getSourceTypeIcon(sourceType: string): string {
   return icons[sourceType] || "🔗";
 }
 
-export function getSourceName(source: AnySource): string {
-  if (source.sourceKind === "rss") {
-    return (source as RSSFeed).name;
-  }
-  return (source as SourceRecord).name;
+export function getSourceName(source: SourceRecord): string {
+  return source.name;
 }
 
-export function getSourceStatus(source: AnySource): "enabled" | "disabled" | "error" {
-  if (source.sourceKind === "rss") {
-    const feed = source as RSSFeed;
-    if (!feed.enabled) return "disabled";
-    if (feed.error_count > 0) return "error";
-    return "enabled";
-  }
-  const rec = source as SourceRecord;
-  if (!rec.enabled) return "disabled";
-  if (rec.error_count > 0) return "error";
+export function getSourceStatus(source: SourceRecord): "enabled" | "disabled" | "error" {
+  if (!source.enabled) return "disabled";
+  if (source.error_count > 0) return "error";
   return "enabled";
 }
 
@@ -131,7 +113,7 @@ export default function SourceList({ sources, selectedId, onSelect }: SourceList
   const [collapsedGroups, setCollapsedGroups] = React.useState<Set<string>>(new Set());
 
   const filteredSources = searchText
-    ? sources.filter((s) => getSourceName(s).toLowerCase().includes(searchText.toLowerCase()))
+    ? sources.filter((s) => s.name.toLowerCase().includes(searchText.toLowerCase()))
     : sources;
 
   const groupedSources = getSourceGroups(filteredSources);
@@ -153,13 +135,6 @@ export default function SourceList({ sources, selectedId, onSelect }: SourceList
       }
       return next;
     });
-  }
-
-  function getUniqueId(source: AnySource): string {
-    if (source.sourceKind === "rss") {
-      return `rss-${(source as RSSFeed).feed_id}`;
-    }
-    return `unified-${(source as SourceRecord).source_id}`;
   }
 
   return (
@@ -199,19 +174,17 @@ export default function SourceList({ sources, selectedId, onSelect }: SourceList
                 {!isCollapsed && (
                   <div className="source-group-items">
                     {groupSources.map((source) => {
-                      const uniqueId = getUniqueId(source);
-                      const isSelected = selectedId === uniqueId;
+                      const isSelected = selectedId === source.source_id;
                       const status = getSourceStatus(source);
-                      const sourceType = source.sourceKind === "rss" ? "rss" : (source as SourceRecord).source_type;
 
                       return (
                         <button
-                          key={uniqueId}
+                          key={source.source_id}
                           className={`source-list-item ${isSelected ? "source-list-item-selected" : ""}`}
                           onClick={() => onSelect(source)}
                         >
-                          <span className="source-item-icon">{getSourceTypeIcon(sourceType)}</span>
-                          <span className="source-item-name">{getSourceName(source)}</span>
+                          <span className="source-item-icon">{getSourceTypeIcon(source.source_type)}</span>
+                          <span className="source-item-name">{source.name}</span>
                           <span className={`source-item-status source-item-status-${status}`}>
                             {status === "enabled" ? "●" : status === "disabled" ? "○" : "⚠"}
                           </span>

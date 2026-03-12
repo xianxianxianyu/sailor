@@ -22,12 +22,13 @@ _INTERVAL_MAP = {
 class UnifiedScheduler:
     """DB-backed scheduler — ticks every N seconds, dispatches due jobs."""
 
-    def __init__(self, job_repo, job_runner, sniffer_repo, source_repo,
+    def __init__(self, job_repo, job_runner, sniffer_repo, source_repo, follow_repo=None,
                  tick_interval: int = 30) -> None:
         self.job_repo = job_repo
         self.job_runner = job_runner
         self.sniffer_repo = sniffer_repo
         self.source_repo = source_repo
+        self.follow_repo = follow_repo
         self._tick_interval = tick_interval
         self._stopped = True
         self._thread: threading.Thread | None = None
@@ -44,7 +45,7 @@ class UnifiedScheduler:
         self._stopped = True
 
     def sync_from_config(self) -> int:
-        """Sync schedules from sniffer_packs + source_registry into schedules table."""
+        """Sync schedules from sniffer_packs + source_registry + follows into schedules table."""
         count = 0
         now = datetime.utcnow()
 
@@ -84,6 +85,26 @@ class UnifiedScheduler:
                 enabled=True,
             ))
             count += 1
+
+        # Enabled follows with schedule
+        if self.follow_repo:
+            for follow in self.follow_repo.list_scheduled_follows():
+                interval = follow.schedule_minutes * 60
+                next_run = now + timedelta(seconds=interval)
+                if follow.last_run_at:
+                    candidate = follow.last_run_at + timedelta(seconds=interval)
+                    if candidate > now:
+                        next_run = candidate
+                self.job_repo.upsert_schedule(Schedule(
+                    schedule_id=uuid.uuid4().hex[:12],
+                    schedule_type="follow_run",
+                    ref_id=follow.follow_id,
+                    interval_seconds=interval,
+                    next_run_at=next_run,
+                    last_run_at=follow.last_run_at,
+                    enabled=True,
+                ))
+                count += 1
 
         return count
 
@@ -142,6 +163,9 @@ class UnifiedScheduler:
         elif schedule.schedule_type == "source_run":
             input_data = {"source_id": schedule.ref_id}
             job_type = "source_run"
+        elif schedule.schedule_type == "follow_run":
+            input_data = {"follow_id": schedule.ref_id}
+            job_type = "follow_run"
         else:
             return
 
@@ -150,9 +174,8 @@ class UnifiedScheduler:
             job_type=job_type,
             input_json=json.dumps(input_data),
         ))
-        self.job_runner.run(job.job_id)
-        logger.info("[unified-scheduler] Dispatched %s job %s for %s/%s",
-                     job_type, job.job_id, schedule.schedule_type, schedule.ref_id)
+        logger.info("[unified-scheduler] Enqueued %s job %s for %s/%s",
+                    job_type, job.job_id, schedule.schedule_type, schedule.ref_id)
 
     def _build_sniffer_input(self, pack_id: str) -> dict | None:
         pack = self.sniffer_repo.get_pack(pack_id)

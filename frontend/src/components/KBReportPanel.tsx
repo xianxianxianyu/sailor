@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { generateKBReports, getLatestKBReports } from "../api";
+import { formatJobError } from "../jobErrors";
 import type { KBReport } from "../types";
 
 type Props = {
@@ -11,6 +12,7 @@ export default function KBReportPanel({ kbId }: Props) {
   const [reports, setReports] = useState<KBReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -22,9 +24,12 @@ export default function KBReportPanel({ kbId }: Props) {
 
   async function onGenerate() {
     setGenerating(true);
+    setGenError(null);
     try {
       const newReports = await generateKBReports(kbId);
       setReports(newReports);
+    } catch (e: unknown) {
+      setGenError(formatJobError(e, "报告生成失败"));
     } finally {
       setGenerating(false);
     }
@@ -42,6 +47,12 @@ export default function KBReportPanel({ kbId }: Props) {
           {generating ? "Generating..." : "Generate Reports"}
         </button>
       </div>
+
+      {genError && (
+        <div className="kb-report-error" style={{ color: "var(--danger)", margin: "8px 0" }}>
+          {genError}
+        </div>
+      )}
 
       {reports.length === 0 ? (
         <div className="empty">No reports yet. Click "Generate Reports" to create.</div>

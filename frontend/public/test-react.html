@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sailor Test</title>
+  </head>
+  <body>
+    <div id="root" style="padding: 20px; background: yellow;">
+      <h1 style="color: red;">等待 React 渲染...</h1>
+    </div>
+
+    <script type="module">
+      console.log('=== Script Start ===');
+
+      // 测试 1: 基础 DOM 操作
+      const root = document.getElementById('root');
+      console.log('Root element:', root);
+
+      // 测试 2: 尝试导入 React
+      try {
+        console.log('Attempting to import React...');
+        const React = await import('react');
+        console.log('React imported:', React);
+
+        const ReactDOM = await import('react-dom/client');
+        console.log('ReactDOM imported:', ReactDOM);
+
+        // 测试 3: 尝试渲染
+        const { createRoot } = ReactDOM;
+        const reactRoot = createRoot(root);
+        console.log('Root created:', reactRoot);
+
+        reactRoot.render(
+          React.createElement('div', { style: { padding: '20px', background: 'lightgreen' } },
+            React.createElement('h1', { style: { color: 'green' } }, '✓ React 渲染成功！'),
+            React.createElement('p', null, '如果你看到这个绿色的内容，说明 React 工作正常。')
+          )
+        );
+
+        console.log('Render called successfully');
+      } catch (error) {
+        console.error('Error:', error);
+        root.innerHTML = `<h1 style="color: red;">错误: ${error.message}</h1><pre>${error.stack}</pre>`;
+      }
+    </script>
+  </body>
+</html>

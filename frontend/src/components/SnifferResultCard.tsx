@@ -11,7 +11,7 @@ type Props = {
   result: SniffResult;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
-  onDeepAnalyze?: (id: string) => void;
+  onDeepAnalyze?: (id: string) => void | Promise<void>;
   onSaveToKB?: (id: string) => void;
   onConvertSource?: (id: string) => void;
 };
@@ -72,7 +72,18 @@ export default function SnifferResultCard({
 
       <div className="sniffer-result-actions">
         {onDeepAnalyze && (
-          <button className="sniffer-action-btn" disabled={busy === "analyze"} onClick={() => { setBusy("analyze"); onDeepAnalyze(result.result_id); }}>
+          <button
+            className="sniffer-action-btn"
+            disabled={busy === "analyze"}
+            onClick={async () => {
+              setBusy("analyze");
+              try {
+                await onDeepAnalyze(result.result_id);
+              } finally {
+                setBusy("");
+              }
+            }}
+          >
             {busy === "analyze" ? "分析中..." : "深度分析"}
           </button>
         )}

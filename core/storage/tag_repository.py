@@ -52,6 +52,8 @@ class TagRepository:
 
     def delete_tag(self, tag_id: str) -> bool:
         with self.db.connect() as conn:
+            # Delete in order: user_actions, resource_tags, then user_tags
+            conn.execute("DELETE FROM user_actions WHERE tag_id = ?", (tag_id,))
             conn.execute("DELETE FROM resource_tags WHERE tag_id = ?", (tag_id,))
             cursor = conn.execute("DELETE FROM user_tags WHERE tag_id = ?", (tag_id,))
         return cursor.rowcount > 0

@@ -1,14 +1,18 @@
 """Centralized logging configuration for Sailor."""
 
 import logging
+import os
 import sys
 
 LOG_FORMAT = "%(asctime)s | %(levelname)-5s | %(name)s | %(message)s"
 LOG_DATE_FORMAT = "%H:%M:%S"
 
 
-def setup_logging(level: int = logging.INFO) -> None:
+def setup_logging(level: int | None = None) -> None:
     """Configure logging for the entire application. Call once at startup."""
+    if level is None:
+        level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+        level = getattr(logging, level_name, logging.INFO)
     root = logging.getLogger()
     root.setLevel(level)
 

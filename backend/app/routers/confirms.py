@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import json
+import uuid
 
 from fastapi import APIRouter, HTTPException
 
 from backend.app.container import AppContainer
 from backend.app.schemas import ConfirmActionIn, PendingConfirmOut
+from core.models import Job
 
-router = APIRouter(prefix="/confirms", tags=["confirms"])
+router = APIRouter(prefix="/confirms", tags=["system"])
 
 
-def _confirm_to_out(pc) -> PendingConfirmOut:
+def _confirm_to_out(pc, execution_job_id: str | None = None) -> PendingConfirmOut:
+    metadata = getattr(pc, "metadata", {}) or {}
+    resolved_execution_job_id = execution_job_id or metadata.get("execution_job_id")
     return PendingConfirmOut(
         confirm_id=pc.confirm_id,
         job_id=pc.job_id,
@@ -19,6 +23,7 @@ def _confirm_to_out(pc) -> PendingConfirmOut:
         status=pc.status,
         created_at=pc.created_at,
         resolved_at=pc.resolved_at,
+        execution_job_id=resolved_execution_job_id,
     )
 
 
@@ -52,21 +57,23 @@ def mount_confirm_routes(container: AppContainer) -> APIRouter:
         if not resolved:
             raise HTTPException(status_code=500, detail="Failed to resolve confirm")
 
-        # On approve, create a job to execute the pending action
+        execution_job_id: str | None = None
         if payload.action == "approve":
             confirm_payload = json.loads(resolved.payload_json or "{}")
-            job_type = confirm_payload.get("job_type")
-            input_json = confirm_payload.get("input_json")
-            if job_type and input_json:
-                import uuid
-                from core.models import Job
-                job = container.job_repo.create_job(Job(
-                    job_id=uuid.uuid4().hex[:12],
+            if "job_type" in confirm_payload and "input_json" in confirm_payload:
+                job_type = str(confirm_payload["job_type"])
+                input_json = confirm_payload["input_json"]
+                execution_job_id = uuid.uuid4().hex[:12]
+                container.job_repo.create_job(Job(
+                    job_id=execution_job_id,
                     job_type=job_type,
-                    input_json=json.dumps(input_json) if isinstance(input_json, dict) else input_json,
+                    input_json=json.dumps(input_json) if not isinstance(input_json, str) else input_json,
                 ))
-                container.job_runner.run(job.job_id)
+                resolved = container.job_repo.update_confirm_metadata(
+                    confirm_id,
+                    {"execution_job_id": execution_job_id},
+                ) or resolved
 
-        return _confirm_to_out(resolved)
+        return _confirm_to_out(resolved, execution_job_id=execution_job_id)
 
     return router

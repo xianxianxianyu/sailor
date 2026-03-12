@@ -138,6 +138,9 @@ class KnowledgeBaseRepository:
 
     def delete_kb(self, kb_id: str) -> bool:
         with self.db.connect() as conn:
+            # Delete in order: user_actions, kb_graph_edges, kb_items, then knowledge_bases
+            conn.execute("DELETE FROM user_actions WHERE kb_id = ?", (kb_id,))
+            conn.execute("DELETE FROM kb_graph_edges WHERE kb_id = ?", (kb_id,))
             conn.execute("DELETE FROM kb_items WHERE kb_id = ?", (kb_id,))
             cursor = conn.execute("DELETE FROM knowledge_bases WHERE kb_id = ?", (kb_id,))
         return cursor.rowcount > 0
@@ -148,6 +151,16 @@ class KnowledgeBaseRepository:
                 "SELECT kb_id, name, description FROM knowledge_bases ORDER BY name ASC"
             ).fetchall()
         return [KnowledgeBase(kb_id=row["kb_id"], name=row["name"], description=row["description"]) for row in rows]
+
+    def get_kb(self, kb_id: str) -> KnowledgeBase | None:
+        with self.db.connect() as conn:
+            row = conn.execute(
+                "SELECT kb_id, name, description FROM knowledge_bases WHERE kb_id = ?",
+                (kb_id,),
+            ).fetchone()
+        if not row:
+            return None
+        return KnowledgeBase(kb_id=row["kb_id"], name=row["name"], description=row["description"])
 
     def add_item(self, kb_id: str, resource_id: str) -> KnowledgeBaseItem:
         with self.db.connect() as conn:

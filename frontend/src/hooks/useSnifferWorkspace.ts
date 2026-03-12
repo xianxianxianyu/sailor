@@ -1,12 +1,16 @@
-import { useState, useMemo } from "react";
+﻿import { useState, useMemo } from "react";
 import {
   snifferSearch,
+  JobCancelledError,
+  JobFailedError,
+  JobTimeoutError,
   deepAnalyze,
   compareResults,
   saveToKB,
   convertToSource,
   getKnowledgeBases,
 } from "../api";
+import { showJobError } from "../jobErrors";
 import type {
   CompareSummary,
   KnowledgeBase,
@@ -73,7 +77,17 @@ export default function useSnifferWorkspace(toast?: ToastFn) {
     setAnalysisResult(null); setAnalysisTargetId(null);
     setCompareSummary(null);
     try { setResponse(await snifferSearch(query)); }
-    catch { setError("搜索失败，请检查网络或稍后重试。"); }
+    catch (e: unknown) {
+      if (e instanceof JobTimeoutError) {
+        setError(`搜索仍在后台运行（job_id=${e.jobId}，status=${e.lastStatus}）`);
+      } else if (e instanceof JobCancelledError) {
+        setError(`搜索已取消（job_id=${e.jobId}）`);
+      } else if (e instanceof JobFailedError) {
+        setError(`搜索失败：${e.errorMessage}（job_id=${e.jobId}）`);
+      } else {
+        setError("搜索失败，请检查网络或稍后重试。");
+      }
+    }
     finally { setLoading(false); }
   }
 
@@ -100,14 +114,14 @@ export default function useSnifferWorkspace(toast?: ToastFn) {
     if (selectedIds.size < 2) return;
     setCompareLoading(true); setCompareSummary(null);
     try { setCompareSummary(await compareResults([...selectedIds])); }
-    catch { toast?.error("对比分析失败"); }
+    catch (e: unknown) { if (toast) showJobError(toast, e, "对比分析失败"); }
     setCompareLoading(false);
   }
 
   async function handleDeepAnalyze(resultId: string) {
     setAnalysisLoading(true); setAnalysisTargetId(resultId); setAnalysisResult(null);
     try { setAnalysisResult(await deepAnalyze(resultId)); }
-    catch { toast?.error("分析失败，请重试"); }
+    catch (e: unknown) { if (toast) showJobError(toast, e, "分析失败"); }
     setAnalysisLoading(false);
   }
 
@@ -119,16 +133,16 @@ export default function useSnifferWorkspace(toast?: ToastFn) {
 
   async function handleKBConfirm(kbId: string) {
     setKbSubmitting(true);
-    try { await saveToKB(kbPickerResultId, kbId); toast?.success("已收藏到知识库"); } catch { toast?.error("收藏失败"); }
+    try { await saveToKB(kbPickerResultId, kbId); toast?.success("已收藏到知识库"); } catch (e: unknown) { if (toast) showJobError(toast, e, "收藏失败"); }
     setKbSubmitting(false); setKbPickerOpen(false);
   }
 
   async function handleConvertSource(resultId: string) {
-    try { await convertToSource(resultId); toast?.success("已转为订阅源"); } catch { toast?.error("转订阅失败"); }
+    try { await convertToSource(resultId); toast?.success("已转为订阅源"); } catch (e: unknown) { if (toast) showJobError(toast, e, "转订阅失败"); }
   }
 
-  function handlePackRun(res: unknown) {
-    setResponse(res as SearchResponse);
+  function handlePackRun(res: SearchResponse) {
+    setResponse(res);
     setSelectedIds(new Set());
     setAnalysisResult(null); setAnalysisTargetId(null);
     setCompareSummary(null);
@@ -136,6 +150,11 @@ export default function useSnifferWorkspace(toast?: ToastFn) {
 
   // --- derived ---
   const results: SniffResult[] = response?.results ?? [];
+  const kbPickerTitle = useMemo(() => {
+    if (!kbPickerResultId) return "";
+    const found = results.find((r) => r.result_id === kbPickerResultId);
+    return found?.title ?? kbPickerResultId;
+  }, [results, kbPickerResultId]);
 
   return {
     // state
@@ -150,6 +169,7 @@ export default function useSnifferWorkspace(toast?: ToastFn) {
     analysisLoading,
     kbPickerOpen,
     kbPickerResultId,
+    kbPickerTitle,
     kbs,
     kbSubmitting,
     inspectorTarget,
@@ -167,3 +187,5 @@ export default function useSnifferWorkspace(toast?: ToastFn) {
     setKbPickerOpen,
   };
 }
+
+

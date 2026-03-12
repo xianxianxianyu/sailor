@@ -7,6 +7,11 @@ import {
   removeKBItem,
 } from "../api";
 import type { KBItemResource, KnowledgeBase } from "../types";
+import KBGraphView from "../components/KBGraphView";
+import KBReportPanel from "../components/KBReportPanel";
+import TagPage from "./TagPage";
+
+type KBTab = "articles" | "graph" | "tags" | "reports";
 
 export default function KBPage() {
   const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
@@ -16,6 +21,7 @@ export default function KBPage() {
   const [newDesc, setNewDesc] = useState("");
   const [creating, setCreating] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [activeTab, setActiveTab] = useState<KBTab>("articles");
 
   async function loadKbs() {
     const list = await getKnowledgeBases();
@@ -29,6 +35,7 @@ export default function KBPage() {
 
   useEffect(() => { loadKbs(); }, []);
   useEffect(() => { loadItems(selectedKb); }, [selectedKb]);
+  useEffect(() => { setActiveTab("articles"); }, [selectedKb]);
 
   async function handleCreate() {
     if (!newName.trim()) return;
@@ -108,31 +115,65 @@ export default function KBPage() {
 
           {selectedKb && (
             <div className="kb-detail">
-              <h3>{selectedKbObj?.name} · 收藏文章 ({items.length})</h3>
-              {items.length === 0 ? (
-                <p className="empty-hint">这个知识库还没有文章。去 📊 趋势页面收藏吧。</p>
-              ) : (
-                <div className="kb-items-grid">
-                  {items.map((item) => (
-                    <div key={item.resource_id} className="kb-item-card">
-                      <a href={item.original_url} target="_blank" rel="noreferrer" className="kb-item-title">
-                        {item.title}
-                      </a>
-                      <p className="kb-item-summary">{item.summary}</p>
-                      <div className="kb-item-footer">
-                        <div className="kb-item-tags">
-                          {item.topics.map((t) => <span key={t} className="topic-chip">{t}</span>)}
+              <div className="kb-tab-bar">
+                <button
+                  className={`kb-tab ${activeTab === "articles" ? "kb-tab-active" : ""}`}
+                  onClick={() => setActiveTab("articles")}
+                >
+                  收藏文章 ({items.length})
+                </button>
+                <button
+                  className={`kb-tab ${activeTab === "graph" ? "kb-tab-active" : ""}`}
+                  onClick={() => setActiveTab("graph")}
+                >
+                  Graph
+                </button>
+                <button
+                  className={`kb-tab ${activeTab === "tags" ? "kb-tab-active" : ""}`}
+                  onClick={() => setActiveTab("tags")}
+                >
+                  🏷️ 标签
+                </button>
+                <button
+                  className={`kb-tab ${activeTab === "reports" ? "kb-tab-active" : ""}`}
+                  onClick={() => setActiveTab("reports")}
+                >
+                  📊 报告
+                </button>
+              </div>
+
+              {activeTab === "articles" && (
+                <>
+                  {items.length === 0 ? (
+                    <p className="empty-hint">这个知识库还没有文章。去 📊 趋势页面收藏吧。</p>
+                  ) : (
+                    <div className="kb-items-grid">
+                      {items.map((item) => (
+                        <div key={item.resource_id} className="kb-item-card">
+                          <a href={item.original_url} target="_blank" rel="noreferrer" className="kb-item-title">
+                            {item.title}
+                          </a>
+                          <p className="kb-item-summary">{item.summary}</p>
+                          <div className="kb-item-footer">
+                            <div className="kb-item-tags">
+                              {item.topics.map((t) => <span key={t} className="topic-chip">{t}</span>)}
+                            </div>
+                            <button
+                              className="delete-btn"
+                              onClick={() => handleRemoveItem(item.resource_id)}
+                              aria-label={`移除 ${item.title}`}
+                            >移除</button>
+                          </div>
                         </div>
-                        <button
-                          className="delete-btn"
-                          onClick={() => handleRemoveItem(item.resource_id)}
-                          aria-label={`移除 ${item.title}`}
-                        >移除</button>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
+
+              {activeTab === "graph" && <KBGraphView kbId={selectedKb} />}
+              {activeTab === "tags" && <TagPage />}
+              {activeTab === "reports" && <KBReportPanel kbId={selectedKb} />}
             </div>
           )}
         </div>
